@@ -3044,7 +3044,7 @@ class Client(ClientWithProject):
     ) -> job.LoadJob:
         """Upload the contents of a table from a pandas DataFrame.
 
-        .. deprecated::
+        .. deprecated:: 3.44.0
             Emits a :class:`PendingDeprecationWarning`. For direct, optimized
             loading, call ``pandas_gbq.to_gbq()`` instead.
 
@@ -4386,7 +4386,7 @@ class Client(ClientWithProject):
     ) -> Sequence[Sequence[dict]]:
         """Insert rows into a table from a dataframe via the streaming API.
 
-        .. deprecated::
+        .. deprecated:: 3.44.0
             Emits a :class:`PendingDeprecationWarning`. For direct, optimized
             access, call ``pandas_gbq.to_gbq()`` instead.
 

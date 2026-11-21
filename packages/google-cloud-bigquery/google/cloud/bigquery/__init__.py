@@ -253,7 +253,7 @@ __all__ = [
 def load_ipython_extension(ipython):
     """Called by IPython when this module is loaded as an IPython extension.
 
-    .. deprecated::
+    .. deprecated:: 3.26.0
         ``%load_ext google.cloud.bigquery`` is deprecated and emits a
         :class:`FutureWarning`. Install the ``bigquery-magics`` package and run
         ``%load_ext bigquery_magics`` instead.
