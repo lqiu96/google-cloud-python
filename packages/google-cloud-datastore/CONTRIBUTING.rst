@@ -15,16 +15,16 @@ Running System Tests
 ********************
 
 - You'll need to create composite
-  `indexes <https://cloud.google.com/datastore/docs/tools/indexconfig>`__
+  `indexes <https://docs.cloud.google.com/datastore/docs/tools/indexconfig>`__
   with the ``gcloud`` command line
-  `tool <https://developers.google.com/cloud/sdk/gcloud/>`__::
+  `tool <https://docs.cloud.google.com/sdk/gcloud>`__::
 
    # Install the app (App Engine Command Line Interface) component.
    $ gcloud components install app-engine-python
 
    # Authenticate the gcloud tool with your account.
    $ GOOGLE_APPLICATION_CREDENTIALS="path/to/app_credentials.json"
-   $ gcloud auth activate-service-account    > --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+   $ gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
 
    # Create the indexes
    $ gcloud datastore indexes create tests/system/index.yaml

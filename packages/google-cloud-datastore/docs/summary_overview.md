@@ -14,9 +14,9 @@ Overview of the APIs available for Cloud Datastore API.
 Classes, methods and properties & attributes for
 Cloud Datastore API.
 
-[classes](https://cloud.google.com/python/docs/reference/datastore/latest/summary_class.html)
+[classes](https://docs.cloud.google.com/python/docs/reference/datastore/latest/summary_class.html)
 
-[methods](https://cloud.google.com/python/docs/reference/datastore/latest/summary_method.html)
+[methods](https://docs.cloud.google.com/python/docs/reference/datastore/latest/summary_method.html)
 
 [properties and
-attributes](https://cloud.google.com/python/docs/reference/datastore/latest/summary_property.html)
+attributes](https://docs.cloud.google.com/python/docs/reference/datastore/latest/summary_property.html)

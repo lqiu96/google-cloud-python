@@ -15,9 +15,25 @@ scalable storage for your application.
    :target: https://pypi.org/project/google-cloud-datastore/
 .. |versions| image:: https://img.shields.io/pypi/pyversions/google-cloud-datastore.svg
    :target: https://pypi.org/project/google-cloud-datastore/
-.. _Cloud Datastore: https://cloud.google.com/datastore
-.. _Client Library Documentation: https://cloud.google.com/python/docs/reference/datastore/latest/summary_overview
-.. _Product Documentation:  https://cloud.google.com/datastore
+.. _Cloud Datastore: https://docs.cloud.google.com/datastore/docs
+.. _Client Library Documentation: https://docs.cloud.google.com/python/docs/reference/datastore/latest/summary_overview
+.. _Product Documentation: https://docs.cloud.google.com/datastore/docs
+
+Choosing the Right Package
+--------------------------
+
+- Use ``google.cloud.datastore`` (the handwritten veneer in this package) for
+  idiomatic synchronous entities, keys, queries, aggregations, batches, and
+  transactions with Cloud Datastore or Firestore in Datastore mode.
+- Use ``google.cloud.datastore_v1`` (the auto-generated GAPIC client bundled in
+  this same distribution) when you need ``asyncio`` via
+  ``DatastoreAsyncClient`` or GAPIC-only features such as GQL queries, vector
+  search, server-side transforms, or ``previous_transaction`` retry priority.
+  Do not mix types between ``google.cloud.datastore`` and
+  ``google.cloud.datastore_v1`` (they share class names such as ``Entity``,
+  ``Key``, ``Query``, and ``PropertyFilter``).
+- Use ``google-cloud-ndb`` when migrating App Engine NDB applications.
+- Use ``google-cloud-firestore`` for Firestore in Native mode.
 
 Quick Start
 -----------
@@ -30,9 +46,9 @@ In order to use this library, you first need to go through the following steps:
 4. `Set up Authentication.`_
 
 .. _Select or create a Cloud Platform project.: https://console.cloud.google.com/project
-.. _Enable billing for your project.: https://cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project
-.. _Enable the Cloud Datastore.:  https://cloud.google.com/datastore
-.. _Set up Authentication.: https://googleapis.dev/python/google-api-core/latest/auth.html
+.. _Enable billing for your project.: https://docs.cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project
+.. _Enable the Cloud Datastore.: https://console.cloud.google.com/flows/enableapi?apiid=datastore.googleapis.com
+.. _Set up Authentication.: https://docs.cloud.google.com/docs/authentication/client-libraries
 
 Installation
 ~~~~~~~~~~~~
@@ -48,11 +64,31 @@ dependencies.
 
 .. _`venv`: https://docs.python.org/3/library/venv.html
 
+Example Usage
+~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    from google.cloud import datastore
+
+    # Reuse a single Client instance across requests.
+    client = datastore.Client()
+
+    key = client.key("Task", "sample_task")
+    task = datastore.Entity(key=key)
+    task["description"] = "Buy milk"
+    client.put(task)
+
+    fetched = client.get(key)
+    print(fetched["description"])
+
 
 Code samples and snippets
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Code samples and snippets live in the `samples/`_ folder.
+Auto-generated ``google.cloud.datastore_v1`` and
+``google.cloud.datastore_admin_v1`` GAPIC snippets live in the `samples/`_
+folder.
 
 .. _samples/: https://github.com/googleapis/google-cloud-python/tree/main/packages/google-cloud-datastore/samples
 
@@ -62,10 +98,10 @@ Supported Python Versions
 Our client libraries are compatible with all current `active`_ and `maintenance`_ versions of
 Python.
 
-Python >= 3.10, including 3.14
+Python >= 3.10, including 3.15
 
-.. _active: https://devguide.python.org/devcycle/#in-development-main-branch
-.. _maintenance: https://devguide.python.org/devcycle/#maintenance-branches
+.. _active: https://devguide.python.org/versions/#supported-versions
+.. _maintenance: https://devguide.python.org/versions/#supported-versions
 
 Unsupported Python Versions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -75,7 +111,7 @@ Python <= 3.9
 If you are using an `end-of-life`_
 version of Python, we recommend that you update as soon as possible to an actively supported version.
 
-.. _end-of-life: https://devguide.python.org/devcycle/#end-of-life-branches
+.. _end-of-life: https://devguide.python.org/versions/#unsupported-versions
 
 Mac/Linux
 ^^^^^^^^^
@@ -106,7 +142,7 @@ Next Steps
 -  View this `README`_ to see the full list of Cloud
    APIs that we cover.
 
-.. _Cloud Datastore Product documentation:  https://cloud.google.com/datastore
+.. _Cloud Datastore Product documentation: https://docs.cloud.google.com/datastore/docs
 .. _README: https://github.com/googleapis/google-cloud-python/blob/main/README.rst
 
 Logging
@@ -129,7 +165,7 @@ event.
 
 A logging scope is a period-separated namespace that begins with :code:`google`, identifying the Python module or package to log.
 
-- Valid logging scopes: :code:`google`, :code:`google.cloud.asset.v1`, :code:`google.api`, :code:`google.auth`, etc.
+- Valid logging scopes: :code:`google`, :code:`google.cloud.datastore`, :code:`google.cloud.datastore_v1`, :code:`google.api`, :code:`google.auth`, etc.
 - Invalid logging scopes: :code:`foo`, :code:`123`, etc.
 
 **NOTE**: If the logging scope is invalid, the library does not set up any logging handlers.
@@ -143,11 +179,11 @@ Environment-Based Examples
 
     export GOOGLE_SDK_PYTHON_LOGGING_SCOPE=google
 
-- Enabling the default handler for a specific Google module (for a client library called :code:`library_v1`):
+- Enabling the default handler for Cloud Datastore (use :code:`google.cloud.datastore_v1` for underlying GAPIC RPC logs):
 
 .. code-block:: console
 
-    export GOOGLE_SDK_PYTHON_LOGGING_SCOPE=google.cloud.library_v1
+    export GOOGLE_SDK_PYTHON_LOGGING_SCOPE=google.cloud.datastore
 
 
 Advanced, code-based configuration
@@ -163,22 +199,22 @@ Code-Based Examples
 .. code-block:: python
 
     import logging
-    
-    from google.cloud import library_v1
-    
+
+    from google.cloud import datastore
+
     base_logger = logging.getLogger("google")
     base_logger.addHandler(logging.StreamHandler())
     base_logger.setLevel(logging.DEBUG)
 
-- Configuring a handler for a specific Google module (for a client library called :code:`library_v1`):
+- Configuring a handler for Cloud Datastore (or :code:`google.cloud.datastore_v1` for underlying GAPIC RPC logs):
 
 .. code-block:: python
 
     import logging
-    
-    from google.cloud import library_v1
-    
-    base_logger = logging.getLogger("google.cloud.library_v1")
+
+    from google.cloud import datastore
+
+    base_logger = logging.getLogger("google.cloud.datastore")
     base_logger.addHandler(logging.StreamHandler())
     base_logger.setLevel(logging.DEBUG)
 
