@@ -15,7 +15,7 @@
 """Shared helper functions for connecting BigQuery and pandas.
 
 NOTE: This module is DEPRECATED. Please make updates in the pandas-gbq package,
-instead. See: go/pandas-gbq-and-bigframes-redundancy and
+instead. See:
 https://github.com/googleapis/python-bigquery-pandas/blob/main/pandas_gbq/schema/pandas_to_bigquery.py
 """
 
@@ -465,7 +465,7 @@ def dataframe_to_bq_schema(dataframe, bq_schema):
 
     DEPRECATED: Use
     pandas_gbq.schema.pandas_to_bigquery.dataframe_to_bigquery_fields(),
-    instead. See: go/pandas-gbq-and-bigframes-redundancy.
+    instead.
 
     Args:
         dataframe (pandas.DataFrame):
@@ -694,7 +694,7 @@ def dataframe_to_parquet(
         filepath (str):
             Path to write Parquet file to.
         parquet_compression (Optional[str]):
-            The compression codec to use by the the ``pyarrow.parquet.write_table``
+            The compression codec to use by the ``pyarrow.parquet.write_table``
             serializing method. Defaults to "SNAPPY".
             https://arrow.apache.org/docs/python/generated/pyarrow.parquet.write_table.html#pyarrow-parquet-write-table
         parquet_use_compliant_nested_type (bool):

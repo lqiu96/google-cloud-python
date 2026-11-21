@@ -430,7 +430,7 @@ class Client(ClientWithProject):
 
         Args:
             project (Optional[str]):
-                Project ID to use for retreiving service account email.
+                Project ID to use for retrieving service account email.
                 Defaults to the client's project.
             retry (Optional[google.api_core.retry.Retry]): How to retry the RPC.
             timeout (Optional[float]):
@@ -467,7 +467,7 @@ class Client(ClientWithProject):
         """List projects for the project associated with this client.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/projects/list
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/projects/list
 
         Args:
             max_results (Optional[int]):
@@ -533,18 +533,18 @@ class Client(ClientWithProject):
         """List datasets for the project associated with this client.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list
 
         Args:
             project (Optional[str]):
-                Project ID to use for retreiving datasets. Defaults to the
+                Project ID to use for retrieving datasets. Defaults to the
                 client's project.
             include_all (Optional[bool]):
                 True if results include hidden datasets. Defaults to False.
             filter (Optional[str]):
                 An expression for filtering the results by label.
                 For syntax, see
-                https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list#body.QUERY_PARAMETERS.filter
+                https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list#body.QUERY_PARAMETERS.filter
             max_results (Optional[int]):
                 Maximum number of datasets to return.
             page_token (Optional[str]):
@@ -794,7 +794,7 @@ class Client(ClientWithProject):
 
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
 
         Example:
 
@@ -870,7 +870,7 @@ class Client(ClientWithProject):
         """[Beta] Create a routine via a POST request.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/routines/insert
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines/insert
 
         Args:
             routine (google.cloud.bigquery.routine.Routine):
@@ -922,10 +922,10 @@ class Client(ClientWithProject):
         retry: retries.Retry = DEFAULT_RETRY,
         timeout: TimeoutType = DEFAULT_TIMEOUT,
     ) -> Table:
-        """API call:  create a table via a PUT request
+        """API call: create a table via a POST request.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert
 
         Args:
             table (Union[ \
@@ -1089,7 +1089,7 @@ class Client(ClientWithProject):
 
                 Only version ``1`` is currently supported.
 
-                See: https://cloud.google.com/bigquery/docs/reference/rest/v2/GetPolicyOptions
+                See: https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/GetPolicyOptions
             retry (Optional[google.api_core.retry.Retry]):
                 How to retry the RPC.
             timeout (Optional[float]):
@@ -1131,7 +1131,7 @@ class Client(ClientWithProject):
         *,
         fields: Sequence[str] = (),
     ) -> Policy:
-        """Return the access control policy for a table resource.
+        """Set the access control policy for a table resource.
 
         Args:
             table (Union[ \
@@ -1140,7 +1140,7 @@ class Client(ClientWithProject):
                 google.cloud.bigquery.table.TableListItem, \
                 str, \
             ]):
-                The table to get the access control policy for.
+                The table to set the access control policy for.
                 If a string is passed in, this method attempts to create a
                 table reference from a string using
                 :func:`~google.cloud.bigquery.table.TableReference.from_string`.
@@ -1148,7 +1148,7 @@ class Client(ClientWithProject):
                 The access control policy to set.
             updateMask (Optional[str]):
                 Mask as defined by
-                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/setIamPolicy#body.request_body.FIELDS.update_mask
+                https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables/setIamPolicy#body.request_body.FIELDS.update_mask
 
                 Incompatible with ``fields``.
             retry (Optional[google.api_core.retry.Retry]):
@@ -1158,7 +1158,7 @@ class Client(ClientWithProject):
                 before using ``retry``.
             fields (Sequence[str]):
                 Which properties to set on the policy. See:
-                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/setIamPolicy#body.request_body.FIELDS.update_mask
+                https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables/setIamPolicy#body.request_body.FIELDS.update_mask
 
                 Incompatible with ``updateMask``.
 
@@ -1207,6 +1207,35 @@ class Client(ClientWithProject):
         retry: retries.Retry = DEFAULT_RETRY,
         timeout: TimeoutType = DEFAULT_TIMEOUT,
     ) -> Dict[str, Any]:
+        """Test the caller's IAM permissions on a table resource.
+
+        See
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables/testIamPermissions
+
+        Args:
+            table (Union[ \
+                google.cloud.bigquery.table.Table, \
+                google.cloud.bigquery.table.TableReference, \
+                google.cloud.bigquery.table.TableListItem, \
+                str, \
+            ]):
+                The table to test IAM permissions for. If a string is passed
+                in, this method attempts to create a table reference from a
+                string using
+                :func:`~google.cloud.bigquery.table.TableReference.from_string`.
+            permissions (Sequence[str]):
+                The set of permissions to check for the resource.
+            retry (Optional[google.api_core.retry.Retry]):
+                How to retry the RPC.
+            timeout (Optional[float]):
+                The number of seconds to wait for the underlying HTTP transport
+                before using ``retry``.
+
+        Returns:
+            Dict[str, Any]:
+                The API response mapping containing the subset of requested
+                ``permissions`` that the caller is allowed.
+        """
         table = _table_arg_to_table_ref(table, default_project=self.project)
 
         body = {"permissions": permissions}
@@ -1406,7 +1435,7 @@ class Client(ClientWithProject):
                 labels, etc) and ACL information are updated. This argument can
                 take on the following possible enum values.
 
-                * :attr:`~google.cloud.bigquery.enums.UPDATE_MODE_UNSPECIFIED`:
+                * :attr:`~google.cloud.bigquery.enums.UpdateMode.UPDATE_MODE_UNSPECIFIED`:
                     The default value. Behavior defaults to UPDATE_FULL.
                 * :attr:`~google.cloud.bigquery.enums.UpdateMode.UPDATE_METADATA`:
                     Includes metadata information for the dataset, such as friendlyName, description, labels, etc.
@@ -1671,7 +1700,7 @@ class Client(ClientWithProject):
         """[Beta] List models in the dataset.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/models/list
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/models/list
 
         Args:
             dataset (Union[ \
@@ -1748,7 +1777,7 @@ class Client(ClientWithProject):
         """[Beta] List routines in the dataset.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/routines/list
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines/list
 
         Args:
             dataset (Union[ \
@@ -1825,7 +1854,7 @@ class Client(ClientWithProject):
         """List tables in the dataset.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
 
         Args:
             dataset (Union[ \
@@ -1900,7 +1929,7 @@ class Client(ClientWithProject):
         """Delete a dataset.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
 
         Args:
             dataset (Union[ \
@@ -1959,7 +1988,7 @@ class Client(ClientWithProject):
         """[Beta] Delete a model
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/models/delete
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/models/delete
 
         Args:
             model (Union[ \
@@ -2080,7 +2109,7 @@ class Client(ClientWithProject):
         """[Beta] Delete a routine.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/routines/delete
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines/delete
 
         Args:
             routine (Union[ \
@@ -2134,7 +2163,7 @@ class Client(ClientWithProject):
         """Delete a table
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/delete
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables/delete
 
         Args:
             table (Union[ \
@@ -2195,7 +2224,7 @@ class Client(ClientWithProject):
             project (Optional[str]):
                 Project ID for the query job (defaults to the project of the client).
             timeout_ms (Optional[int]):
-                Number of milliseconds the the API call should wait for the query
+                Number of milliseconds the API call should wait for the query
                 to complete before the request times out.
             location (Optional[str]): Location of the query job.
             timeout (Optional[float]):
@@ -2379,7 +2408,7 @@ class Client(ClientWithProject):
         """Fetch a job for the project associated with this client.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get
 
         Args:
             job_id (Union[ \
@@ -2447,7 +2476,7 @@ class Client(ClientWithProject):
         """Attempt to cancel a job from a job ID.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/cancel
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/cancel
 
         Args:
             job_id (Union[ \
@@ -2530,11 +2559,11 @@ class Client(ClientWithProject):
         """List jobs for the project associated with this client.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/list
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/list
 
         Args:
             project (Optional[str]):
-                Project ID to use for retreiving datasets. Defaults
+                Project ID to use for retrieving jobs. Defaults
                 to the client's project.
             parent_job (Optional[Union[ \
                 google.cloud.bigquery.job._AsyncJob, \
@@ -2642,7 +2671,7 @@ class Client(ClientWithProject):
         """Starts a job for loading data into a table from Cloud Storage.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
 
         Args:
             source_uris (Union[str, Sequence[str]]):
@@ -2764,8 +2793,9 @@ class Client(ClientWithProject):
                 Extra configuration options for the job.
             timeout (Optional[float]):
                 The number of seconds to wait for the underlying HTTP transport
-                before using ``retry``. Depending on the retry strategy, a request
-                may be repeated several times using the same timeout each time.
+                before retrying (up to ``num_retries`` upload retries).
+                Depending on the retry strategy, a request may be repeated
+                several times using the same timeout each time.
                 Defaults to None.
 
                 Can also be passed as a tuple (connect_timeout, read_timeout).
@@ -2839,6 +2869,10 @@ class Client(ClientWithProject):
     ) -> job.LoadJob:
         """Upload the contents of a table from a pandas DataFrame.
 
+        .. deprecated::
+            Emits a :class:`PendingDeprecationWarning`. For direct, optimized
+            loading, call ``pandas_gbq.to_gbq()`` instead.
+
         Similar to :meth:`load_table_from_uri`, this method creates, starts and
         returns a :class:`~google.cloud.bigquery.job.LoadJob`.
 
@@ -2900,7 +2934,7 @@ class Client(ClientWithProject):
                 :attr:`~google.cloud.bigquery.job.SourceFormat.PARQUET` are
                 supported.
             parquet_compression (Optional[str]):
-                [Beta] The compression method to use if intermittently
+                [Beta] The compression method to use if intermediately
                 serializing ``dataframe`` to a parquet file.
                 Defaults to "snappy".
 
@@ -2913,10 +2947,11 @@ class Client(ClientWithProject):
                 passed as the ``compression`` argument to the underlying
                 ``DataFrame.to_parquet()`` method.
                 https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_parquet.html#pandas.DataFrame.to_parquet
-            timeout (Optional[flaot]):
+            timeout (Optional[float]):
                 The number of seconds to wait for the underlying HTTP transport
-                before using ``retry``. Depending on the retry strategy, a request may
-                be repeated several times using the same timeout each time.
+                before retrying (up to ``num_retries`` upload retries).
+                Depending on the retry strategy, a request may be repeated
+                several times using the same timeout each time.
                 Defaults to None.
 
                 Can also be passed as a tuple (connect_timeout, read_timeout).
@@ -3096,17 +3131,25 @@ class Client(ClientWithProject):
                 .. note::
 
                     If your data is already a newline-delimited JSON string,
-                    it is best to wrap it into a file-like object and pass it
-                    to :meth:`~google.cloud.bigquery.client.Client.load_table_from_file`::
+                    encode it to UTF-8 bytes in a binary file-like object and
+                    pass it to
+                    :meth:`~google.cloud.bigquery.client.Client.load_table_from_file`
+                    with
+                    :attr:`~google.cloud.bigquery.job.SourceFormat.NEWLINE_DELIMITED_JSON`::
 
                         import io
                         from google.cloud import bigquery
 
-                        data = u'{"foo": "bar"}'
-                        data_as_file = io.StringIO(data)
+                        data = b'{"foo": "bar"}\n'
+                        data_as_file = io.BytesIO(data)
 
                         client = bigquery.Client()
-                        client.load_table_from_file(data_as_file, ...)
+                        job_config = bigquery.LoadJobConfig(
+                            source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+                        )
+                        client.load_table_from_file(
+                            data_as_file, table_id, job_config=job_config
+                        )
 
             destination (Union[ \
                 Table, \
@@ -3135,8 +3178,9 @@ class Client(ClientWithProject):
                 :attr:`~google.cloud.bigquery.job.SourceFormat.NEWLINE_DELIMITED_JSON`.
             timeout (Optional[float]):
                 The number of seconds to wait for the underlying HTTP transport
-                before using ``retry``. Depending on the retry strategy, a request may
-                be repeated several times using the same timeout each time.
+                before retrying (up to ``num_retries`` upload retries).
+                Depending on the retry strategy, a request may be repeated
+                several times using the same timeout each time.
                 Defaults to None.
 
                 Can also be passed as a tuple (connect_timeout, read_timeout).
@@ -3220,8 +3264,9 @@ class Client(ClientWithProject):
                 argument will be removed in a future release.)
             timeout (Optional[float]):
                 The number of seconds to wait for the underlying HTTP transport
-                before using ``retry``. Depending on the retry strategy, a request may
-                be repeated several times using the same timeout each time.
+                before retrying (up to ``num_retries`` upload retries).
+                Depending on the retry strategy, a request may be repeated
+                several times using the same timeout each time.
 
                 Can also be passed as a tuple (connect_timeout, read_timeout).
                 See :meth:`requests.Session.request` documentation for details.
@@ -3260,8 +3305,9 @@ class Client(ClientWithProject):
                 argument will be removed in a future release.)
             timeout (Optional[float]):
                 The number of seconds to wait for the underlying HTTP transport
-                before using ``retry``. Depending on the retry strategy, a request may
-                be repeated several times using the same timeout each time.
+                before retrying (up to ``num_retries`` upload retries).
+                Depending on the retry strategy, a request may be repeated
+                several times using the same timeout each time.
 
                 Can also be passed as a tuple (connect_timeout, read_timeout).
                 See :meth:`requests.Session.request` documentation for details.
@@ -3336,8 +3382,9 @@ class Client(ClientWithProject):
                 argument will be removed in a future release.)
             timeout (Optional[float]):
                 The number of seconds to wait for the underlying HTTP transport
-                before using ``retry``. Depending on the retry strategy, a request may
-                be repeated several times using the same timeout each time.
+                before retrying (up to ``num_retries`` upload retries).
+                Depending on the retry strategy, a request may be repeated
+                several times using the same timeout each time.
 
                 Can also be passed as a tuple (connect_timeout, read_timeout).
                 See :meth:`requests.Session.request` documentation for details.
@@ -3408,7 +3455,7 @@ class Client(ClientWithProject):
         """Copy one or more tables to another table.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationtablecopy
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationtablecopy
 
         Args:
             sources (Union[ \
@@ -3513,7 +3560,7 @@ class Client(ClientWithProject):
         """Start a job to extract a table into Cloud Storage files.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationextract
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationextract
 
         Args:
             source (Union[ \
@@ -3522,7 +3569,7 @@ class Client(ClientWithProject):
                 google.cloud.bigquery.table.TableListItem, \
                 google.cloud.bigquery.model.Model, \
                 google.cloud.bigquery.model.ModelReference, \
-                src, \
+                str, \
             ]):
                 Table or Model to be extracted.
             destination_uris (Union[str, Sequence[str]]):
@@ -3613,7 +3660,7 @@ class Client(ClientWithProject):
         """Run a SQL query.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationquery
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationquery
 
         Args:
             query (str):
@@ -3829,8 +3876,11 @@ class Client(ClientWithProject):
                 set** (this is distinct from the total number of rows in the
                 current page: ``iterator.page.num_items``).
 
-                If the query is a special query that produces no results, e.g.
-                a DDL query, an ``_EmptyRowIterator`` instance is returned.
+                Queries that produce no rows (such as DDL statements or dry
+                runs) return an empty
+                :class:`~google.cloud.bigquery.table.RowIterator` (or an
+                ``_EmptyRowIterator`` subclass for dry runs and certain empty
+                job responses).
 
         Raises:
             TypeError:
@@ -3924,7 +3974,7 @@ class Client(ClientWithProject):
         """Insert rows into a table via the streaming API.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
 
         BigQuery will reject insertAll payloads that exceed a defined limit (10MB).
         Additionally, if a payload vastly exceeds this limit, the request is rejected
@@ -3932,7 +3982,7 @@ class Client(ClientWithProject):
 
 
         See
-        https://cloud.google.com/bigquery/quotas#streaming_inserts
+        https://docs.cloud.google.com/bigquery/quotas#streaming_inserts
 
         Args:
             table (Union[ \
@@ -3946,12 +3996,17 @@ class Client(ClientWithProject):
                 tuple should contain data for each schema field on the
                 current table and in the same order as the schema fields. If
                 a list of dictionaries is given, the keys must include all
-                required fields in the schema. Keys which do not correspond
-                to a field in the schema are ignored.
+                required fields in the schema. Keys that do not correspond
+                to a field in the schema are still sent as strings in the
+                request payload and cause BigQuery to reject the row unless
+                ``ignore_unknown_values=True`` is passed.
             selected_fields (Sequence[google.cloud.bigquery.schema.SchemaField]):
-                The fields to return. Required if ``table`` is a
-                :class:`~google.cloud.bigquery.table.TableReference`.
-            kwargs (dict):
+                The schema fields describing the row data to insert. Required
+                if ``table`` is a table ID string, a
+                :class:`~google.cloud.bigquery.table.TableReference`, or a
+                :class:`~google.cloud.bigquery.table.Table` without a populated
+                ``schema``.
+            kwargs (Any):
                 Keyword arguments to
                 :meth:`~google.cloud.bigquery.client.Client.insert_rows_json`.
 
@@ -3962,7 +4017,13 @@ class Client(ClientWithProject):
                 the mappings describing one or more problems with the row.
 
         Raises:
-            ValueError: if table's schema is not set or `rows` is not a `Sequence`.
+            TypeError:
+                If ``rows`` is not a ``Sequence`` or ``Iterator``, or if
+                ``table`` is not a table ID string, ``Table``, or
+                ``TableReference``.
+            ValueError:
+                If the table's schema is empty and ``selected_fields`` is not
+                provided.
         """
         if not isinstance(rows, (collections_abc.Sequence, collections_abc.Iterator)):
             raise TypeError("rows argument should be a sequence of dicts or tuples")
@@ -4000,12 +4061,16 @@ class Client(ClientWithProject):
     ) -> Sequence[Sequence[dict]]:
         """Insert rows into a table from a dataframe via the streaming API.
 
+        .. deprecated::
+            Emits a :class:`PendingDeprecationWarning`. For direct, optimized
+            access, call ``pandas_gbq.to_gbq()`` instead.
+
         BigQuery will reject insertAll payloads that exceed a defined limit (10MB).
         Additionally, if a payload vastly exceeds this limit, the request is rejected
         by the intermediate architecture, which returns a 413 (Payload Too Large) status code.
 
         See
-        https://cloud.google.com/bigquery/quotas#streaming_inserts
+        https://docs.cloud.google.com/bigquery/quotas#streaming_inserts
 
         Args:
             table (Union[ \
@@ -4019,11 +4084,14 @@ class Client(ClientWithProject):
                 ``NaN`` values present in the dataframe are omitted from the
                 streaming API request(s).
             selected_fields (Sequence[google.cloud.bigquery.schema.SchemaField]):
-                The fields to return. Required if ``table`` is a
-                :class:`~google.cloud.bigquery.table.TableReference`.
+                The schema fields describing the row data to insert. Required
+                if ``table`` is a table ID string, a
+                :class:`~google.cloud.bigquery.table.TableReference`, or a
+                :class:`~google.cloud.bigquery.table.Table` without a populated
+                ``schema``.
             chunk_size (int):
                 The number of rows to stream in a single chunk. Must be positive.
-            kwargs (Dict):
+            kwargs (Any):
                 Keyword arguments to
                 :meth:`~google.cloud.bigquery.client.Client.insert_rows_json`.
 
@@ -4072,14 +4140,14 @@ class Client(ClientWithProject):
         """Insert rows into a table without applying local type conversions.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
 
         BigQuery will reject insertAll payloads that exceed a defined limit (10MB).
         Additionally, if a payload vastly exceeds this limit, the request is rejected
         by the intermediate architecture, which returns a 413 (Payload Too Large) status code.
 
         See
-        https://cloud.google.com/bigquery/quotas#streaming_inserts
+        https://docs.cloud.google.com/bigquery/quotas#streaming_inserts
 
         Args:
             table (Union[ \
@@ -4118,7 +4186,7 @@ class Client(ClientWithProject):
                 Treat ``name`` as a template table and provide a suffix.
                 BigQuery will create the table ``<name> + <template_suffix>``
                 based on the schema of the template table. See
-                https://cloud.google.com/bigquery/streaming-data-into-bigquery#template-tables
+                https://docs.cloud.google.com/bigquery/docs/write-api-rest#template-tables
             retry (Optional[google.api_core.retry.Retry]):
                 How to retry the RPC. Defaults to
                 :data:`~google.cloud.bigquery.retry.DEFAULT_INSERT_ROWS_RETRY`,
@@ -4284,7 +4352,7 @@ class Client(ClientWithProject):
         """List the rows of the table.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
 
         .. note::
 
@@ -4416,7 +4484,7 @@ class Client(ClientWithProject):
     ) -> RowIterator:
         """List the rows of a completed query.
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults
         Args:
             job_id (str):
                 ID of a query job.
@@ -4633,7 +4701,7 @@ def _item_to_model(iterator, resource):
 
 
 def _item_to_routine(iterator, resource):
-    """Convert a JSON model to the native object.
+    """Convert a JSON routine to the native object.
 
     Args:
         iterator (google.api_core.page_iterator.Iterator):
@@ -4655,7 +4723,7 @@ def _item_to_table(iterator, resource):
         resource (Dict): An item to be converted to a table.
 
     Returns:
-        google.cloud.bigquery.table.Table: The next table in the page.
+        google.cloud.bigquery.table.TableListItem: The next table in the page.
     """
     return TableListItem(resource)
 
@@ -4664,18 +4732,18 @@ def _extract_job_reference(job, project=None, location=None):
     """Extract fully-qualified job reference from a job-like object.
 
     Args:
-        job_id (Union[ \
+        job (Union[ \
             str, \
             google.cloud.bigquery.job.LoadJob, \
             google.cloud.bigquery.job.CopyJob, \
             google.cloud.bigquery.job.ExtractJob, \
             google.cloud.bigquery.job.QueryJob \
-        ]): Job identifier.
+        ]): Job identifier or job object.
         project (Optional[str]):
-            Project where the job was run. Ignored if ``job_id`` is a job
+            Project where the job was run. Ignored if ``job`` is a job
             object.
         location (Optional[str]):
-            Location where the job was run. Ignored if ``job_id`` is a job
+            Location where the job was run. Ignored if ``job`` is a job
             object.
 
     Returns:
