@@ -255,13 +255,15 @@ class Client(ClientWithProject):
     Environment variables:
 
     - ``BIGQUERY_EMULATOR_HOST``: Overrides the default BigQuery API endpoint
-      host unless ``client_options.api_endpoint`` is explicitly set.
+      URL, including scheme (for example, ``http://localhost:9050``), unless
+      ``client_options.api_endpoint`` is explicitly set.
     - ``GOOGLE_CLOUD_UNIVERSE_DOMAIN``: Sets the universe domain (default
       ``googleapis.com``) unless ``client_options.universe_domain`` is
       explicitly set. Must match the universe domain of the credentials.
 
     For service concepts and error references, see
-    https://docs.cloud.google.com/bigquery/docs/introduction.
+    https://docs.cloud.google.com/bigquery/docs/introduction and
+    https://docs.cloud.google.com/bigquery/docs/errors.
 
     Args:
         project (Optional[str]):
@@ -1134,7 +1136,10 @@ class Client(ClientWithProject):
             requested_policy_version (int):
                 Optional. The maximum policy version that will be used to format the policy.
 
-                Only version ``1`` is currently supported.
+                Only version ``1`` is currently supported by this client
+                method (passing any other value raises :class:`ValueError`,
+                even though the underlying REST API supports ``0``, ``1``, and
+                ``3``).
 
                 See: https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/GetPolicyOptions
             retry (Optional[google.api_core.retry.Retry]):
@@ -2864,8 +2869,9 @@ class Client(ClientWithProject):
               :attr:`~google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND`.
             - CSV-only options on ``LoadJobConfig`` (such as
               ``skip_leading_rows``, ``field_delimiter``, or
-              ``quote_character``) apply only to CSV loads and are ignored for
-              formats such as Parquet, Avro, ORC, or JSON.
+              ``quote_character``) apply only to CSV loads and are rejected
+              with ``400 BadRequest`` for non-CSV formats such as Parquet,
+              Avro, ORC, or JSON.
             - ``location`` (or :attr:`location` on the client) must match the
               region of the destination dataset.
         """
@@ -2972,20 +2978,24 @@ class Client(ClientWithProject):
 
         Note:
             - ``file_obj`` must be opened in binary mode (``"rb"`` or a binary
-              buffer such as :class:`io.BytesIO`). Text streams raise
-              ``ValueError`` or fail during upload.
+              buffer such as :class:`io.BytesIO`). Text files opened with
+              ``open(..., "r")`` raise :class:`ValueError`, and
+              :class:`io.StringIO` can fail with :class:`TypeError` (multipart
+              uploads) or ``400 BadRequest`` (non-ASCII content).
             - ``rewind`` defaults to ``False``. If you wrote into ``file_obj``
               before calling this method, seek to byte 0 or pass
-              ``rewind=True``, otherwise BigQuery reads from EOF and loads 0
-              bytes.
+              ``rewind=True``, otherwise leaving ``file_obj`` at a non-zero
+              offset raises :class:`ValueError` (stream must be at beginning or
+              insufficient remaining bytes).
             - When unset in ``job_config``, BigQuery defaults ``source_format``
               to :attr:`~google.cloud.bigquery.job.SourceFormat.CSV` and
               ``write_disposition`` to
               :attr:`~google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND`.
             - Media uploads retry via ``num_retries`` (an integer count), not a
               :class:`~google.api_core.retry.Retry` object.
-            - CSV-only ``LoadJobConfig`` options (such as ``skip_leading_rows``
-              or ``field_delimiter``) are ignored for non-CSV formats.
+            - CSV-only ``LoadJobConfig`` options (such as ``skip_leading_rows``,
+              ``field_delimiter``, or ``quote_character``) are rejected with
+              ``400 BadRequest`` for non-CSV formats.
             - ``location`` (or :attr:`location` on the client) must match the
               region of the destination dataset.
         """
@@ -3149,8 +3159,9 @@ class Client(ClientWithProject):
               ``parquet_options.enable_list_inference=True``) and serializes
               the DataFrame via :mod:`pyarrow` to a temporary file on local
               disk before uploading (removed afterward). CSV-only
-              ``LoadJobConfig`` options (such as ``skip_leading_rows`` or
-              ``field_delimiter``) are ignored for Parquet loads.
+              ``LoadJobConfig`` options (such as ``skip_leading_rows``,
+              ``field_delimiter``, or ``quote_character``) are rejected with
+              ``400 BadRequest`` for Parquet loads.
             - When ``job_config.schema`` is unset and ``write_disposition`` is
               not
               :attr:`~google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE`,
@@ -3161,10 +3172,12 @@ class Client(ClientWithProject):
               mixed types or all-null values may fail inference without an
               explicit ``job_config.schema``. Pass :class:`decimal.Decimal`
               values with an explicit ``NUMERIC`` or ``BIGNUMERIC`` schema for
-              fixed-point columns, pass JSON strings with an explicit ``JSON``
-              schema field for JSON columns, and note that timezone-naive
-              ``datetime64`` columns map to ``DATETIME`` while timezone-aware
-              (UTC) ``datetime64`` columns map to ``TIMESTAMP``.
+              fixed-point columns, set ``source_format=SourceFormat.CSV`` with
+              JSON strings and an explicit ``JSON`` schema field for ``JSON``
+              columns (the default ``PARQUET`` format raises
+              ``400 BadRequest: Unsupported field type: JSON``), and note that
+              timezone-naive ``datetime64`` columns map to ``DATETIME`` while
+              timezone-aware (UTC) ``datetime64`` columns map to ``TIMESTAMP``.
             - Media uploads retry via ``num_retries`` (an integer count), not a
               :class:`~google.api_core.retry.Retry` object.
             - ``location`` (or :attr:`location` on the client) must match the
@@ -3408,8 +3421,9 @@ class Client(ClientWithProject):
               ``autodetect=True`` only if the destination table does not exist.
             - Media uploads retry via ``num_retries`` (an integer count), not a
               :class:`~google.api_core.retry.Retry` object. CSV-only
-              ``LoadJobConfig`` options (such as ``skip_leading_rows`` or
-              ``field_delimiter``) are ignored for JSON loads.
+              ``LoadJobConfig`` options (such as ``skip_leading_rows``,
+              ``field_delimiter``, or ``quote_character``) are rejected with
+              ``400 BadRequest`` for JSON loads.
             - ``location`` (or :attr:`location` on the client) must match the
               region of the destination dataset.
         """
@@ -3978,8 +3992,8 @@ class Client(ClientWithProject):
             - When automatic ``job_retry`` restarts a failed job during
               ``result()``, the ``QueryJob`` is updated in place with the new
               ``job_id``. To retry a failed job manually, resubmit with a new
-              ``job_id`` (reusing a failed ``job_id`` returns the same failed
-              job). See
+              ``job_id`` (resubmitting an existing ``job_id`` raises
+              ``409 Conflict``). See
               https://docs.cloud.google.com/bigquery/docs/managing-jobs#repeat_jobs
               and https://docs.cloud.google.com/bigquery/docs/errors.
             - With ``dry_run=True`` on ``job_config``,
@@ -3987,8 +4001,10 @@ class Client(ClientWithProject):
               empty iterator immediately without an extra RPC, while
               ``total_bytes_processed`` and ``schema`` are populated from the
               initial response. However, if any queried table enforces
-              Row-Level Security (row access policies), BigQuery masks
-              ``total_bytes_processed`` to ``0``. Do not treat ``0`` as a
+              Row-Level Security (row access policies), BigQuery omits
+              ``totalBytesProcessed`` from the response (so
+              ``total_bytes_processed`` is ``None``, or ``0`` in APIs that
+              default omitted fields). Do not treat ``None`` or ``0`` as a
               zero-cost guarantee on RLS-protected tables.
         """
         _job_helpers.validate_job_retry(job_id, job_retry)
@@ -4090,14 +4106,18 @@ class Client(ClientWithProject):
                 to the client's project.
             api_timeout (Optional[float]):
                 The number of seconds to wait for each underlying HTTP request
-                before using ``retry`` (``jobs.getQueryResults`` enforces a
-                minimum transport timeout floor).
+                before using ``retry`` (applied to ``jobs.query``,
+                ``jobs.insert``, job cancellation, and REST result page
+                fetches).
             wait_timeout (Optional[Union[float, object]]):
-                The total number of seconds to wait for the query to finish. If
-                waiting raises an exception (including timing out after
-                ``wait_timeout``), the client attempts to cancel the running
-                query job. If unset, the client waits indefinitely for the job
-                to finish (set
+                The total number of seconds to wait for the query to finish
+                (passed as ``timeout`` to
+                :meth:`~google.cloud.bigquery.job.QueryJob.result`, where
+                ``jobs.getQueryResults`` enforces a minimum HTTP transport
+                timeout floor). If waiting raises an exception (including
+                timing out after ``wait_timeout``), the client attempts to
+                cancel the running query job. If unset, the client waits
+                indefinitely for the job to finish (set
                 :attr:`~google.cloud.bigquery.job.QueryJobConfig.job_timeout_ms`
                 to enforce a server-side execution limit).
             retry (Optional[google.api_core.retry.Retry]):
@@ -4190,9 +4210,10 @@ class Client(ClientWithProject):
             - With ``dry_run=True`` on ``job_config``, returns an empty
               iterator and populates ``total_bytes_processed`` on the iterator.
               However, if any queried table enforces Row-Level Security (row
-              access policies), BigQuery masks ``total_bytes_processed`` to
-              ``0``. Do not treat ``0`` as a zero-cost guarantee on
-              RLS-protected tables.
+              access policies), BigQuery omits ``totalBytesProcessed`` from the
+              response (so ``total_bytes_processed`` is ``None``, or ``0`` in
+              APIs that default omitted fields). Do not treat ``None`` or ``0``
+              as a zero-cost guarantee on RLS-protected tables.
             - See https://docs.cloud.google.com/bigquery/docs/errors for API
               error reason codes and
               https://docs.cloud.google.com/bigquery/docs/error-messages for
@@ -4307,7 +4328,8 @@ class Client(ClientWithProject):
             selected_fields (Sequence[google.cloud.bigquery.schema.SchemaField]):
                 The schema fields describing the row data to insert. Required
                 if ``table`` is a table ID string, a
-                :class:`~google.cloud.bigquery.table.TableReference`, or a
+                :class:`~google.cloud.bigquery.table.TableReference`, a
+                :class:`~google.cloud.bigquery.table.TableListItem`, or a
                 :class:`~google.cloud.bigquery.table.Table` without a populated
                 ``schema``.
             kwargs (Any):
@@ -4323,8 +4345,8 @@ class Client(ClientWithProject):
         Raises:
             TypeError:
                 If ``rows`` is not a ``Sequence`` or ``Iterator``, or if
-                ``table`` is not a table ID string, ``Table``, or
-                ``TableReference``.
+                ``table`` is not a table ID string, ``Table``,
+                ``TableReference``, or ``TableListItem``.
             ValueError:
                 If the table's schema is empty and ``selected_fields`` is not
                 provided.
@@ -4348,7 +4370,7 @@ class Client(ClientWithProject):
               unacceptable). For new high-volume or exactly-once streaming
               workloads, use the BigQuery Storage Write API in
               ``google-cloud-bigquery-storage``:
-              https://docs.cloud.google.com/bigquery/docs/write-api.
+              https://docs.cloud.google.com/bigquery/docs/write-api-grpc.
         """
         if not isinstance(rows, (collections_abc.Sequence, collections_abc.Iterator)):
             raise TypeError("rows argument should be a sequence of dicts or tuples")
@@ -4411,7 +4433,8 @@ class Client(ClientWithProject):
             selected_fields (Sequence[google.cloud.bigquery.schema.SchemaField]):
                 The schema fields describing the row data to insert. Required
                 if ``table`` is a table ID string, a
-                :class:`~google.cloud.bigquery.table.TableReference`, or a
+                :class:`~google.cloud.bigquery.table.TableReference`, a
+                :class:`~google.cloud.bigquery.table.TableListItem`, or a
                 :class:`~google.cloud.bigquery.table.Table` without a populated
                 ``schema``.
             chunk_size (int):
@@ -4434,8 +4457,10 @@ class Client(ClientWithProject):
         Note:
             - Row-level validation failures return HTTP 200 and do not raise an
               exception. Because this method returns one inner list per chunk,
-              a successful insert returns ``[[]]`` (truthy in boolean context).
-              Check ``any(errors)`` rather than ``if errors:``.
+              a successful insert of one or more chunks returns a list of empty
+              lists such as ``[[]]`` (truthy in boolean context), whereas an
+              empty DataFrame returns ``[]``. Check ``any(errors)`` rather than
+              ``if errors:``.
             - By default (``skip_invalid_rows=False``), a single invalid row
               aborts its entire chunk. Pass ``skip_invalid_rows=True`` to
               persist valid rows in a mixed chunk.
@@ -4446,7 +4471,7 @@ class Client(ClientWithProject):
               ``row_ids``. For new high-volume or exactly-once streaming
               workloads, use the BigQuery Storage Write API in
               ``google-cloud-bigquery-storage``:
-              https://docs.cloud.google.com/bigquery/docs/write-api.
+              https://docs.cloud.google.com/bigquery/docs/write-api-grpc.
         """
         warnings.warn(
             _INSERT_ROWS_FROM_DATAFRAME_DEPRECATED,
@@ -4573,7 +4598,7 @@ class Client(ClientWithProject):
               ``retry=None`` as well if duplicates are unacceptable).
             - For new high-volume or exactly-once streaming workloads, use the
               BigQuery Storage Write API in ``google-cloud-bigquery-storage``:
-              https://docs.cloud.google.com/bigquery/docs/write-api.
+              https://docs.cloud.google.com/bigquery/docs/write-api-grpc.
         """
         if not isinstance(
             json_rows, (collections_abc.Sequence, collections_abc.Iterator)

@@ -12,7 +12,7 @@ processing power of Google's infrastructure.
 -  `Product Documentation`_
 
 .. |GA| image:: https://img.shields.io/badge/support-GA-gold.svg
-   :target: https://github.com/googleapis/google-cloud-python/blob/main/README.rst#general-availability
+   :target: https://github.com/googleapis/google-cloud-python/blob/main/README.rst#stability-levels
 .. |pypi| image:: https://img.shields.io/pypi/v/google-cloud-bigquery.svg
    :target: https://pypi.org/project/google-cloud-bigquery/
 .. |versions| image:: https://img.shields.io/pypi/pyversions/google-cloud-bigquery.svg
@@ -53,7 +53,7 @@ In order to use this library, you first need to go through the following steps:
 
 .. _Select or create a Cloud Platform project.: https://console.cloud.google.com/project
 .. _Enable billing for your project.: https://docs.cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project
-.. _Enable the Google Cloud BigQuery API.:  https://docs.cloud.google.com/bigquery/docs
+.. _Enable the Google Cloud BigQuery API.: https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com
 .. _Setup Authentication.: https://docs.cloud.google.com/docs/authentication/client-libraries
 
 Installation

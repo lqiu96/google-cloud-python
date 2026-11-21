@@ -128,7 +128,7 @@ def query_jobs_insert(
 ) -> job.QueryJob:
     """Initiate a query using jobs.insert.
 
-    See: https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert
+    See: https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert
 
     Args:
         callback (Callable):
@@ -382,7 +382,7 @@ def query_jobs_query(
 ) -> job.QueryJob:
     """Initiate a query using jobs.query with jobCreationMode=JOB_CREATION_REQUIRED.
 
-    See: https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query
+    See: https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query
     """
     path = _to_query_path(project)
     request_body = _to_query_request(
@@ -706,7 +706,7 @@ def _supported_by_jobs_query(request_body: Dict[str, Any]) -> bool:
     # use an allowlist here instead of a denylist because the backend API allows
     # unsupported parameters without any warning or failure. Instead, keep this
     # set in sync with those in QueryRequest:
-    # https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#QueryRequest
+    # https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#QueryRequest
     keys_allowlist = {
         "kind",
         "query",

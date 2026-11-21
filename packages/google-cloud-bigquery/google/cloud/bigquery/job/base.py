@@ -1057,7 +1057,7 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
                 The total number of seconds to wait while polling for the job to
                 complete (also applied as the HTTP transport timeout if the job
                 has not yet started). Individual polling :meth:`reload` requests
-                use ``DEFAULT_GET_JOB_TIMEOUT`` (128 seconds). If ``None``, wait
+                use ``DEFAULT_GET_JOB_TIMEOUT``. If ``None``, wait
                 indefinitely.
 
         Returns:

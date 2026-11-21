@@ -569,7 +569,7 @@ class Dataset(object):
     """Datasets are containers for tables.
 
     See
-    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource-dataset
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets#Dataset
 
     Args:
         dataset_ref (Union[google.cloud.bigquery.dataset.DatasetReference, str]):
@@ -1002,9 +1002,9 @@ class Dataset(object):
     def access_policy_version(self):
         """Optional[int]: The access policy schema version for this dataset.
 
-        Valid values are ``1`` and ``3``. Version ``3`` is required to use
-        conditional access entries. See
-        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets#Dataset.FIELDS.access_policy_version.
+        Valid values are ``0``, ``1``, and ``3``. Version ``3`` is required to
+        use conditional access entries. See
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets/get#body.QUERY_PARAMETERS.access_policy_version.
 
         Raises:
             ValueError: If ``value`` is not an ``int`` or :data:`None`.

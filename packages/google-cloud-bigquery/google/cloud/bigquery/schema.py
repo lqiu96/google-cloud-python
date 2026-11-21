@@ -572,7 +572,7 @@ class SchemaField(object):
             )
 
             # ARRAY cannot directly contain other arrays, only scalar types and STRUCTs
-            # https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#array-type
+            # https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#array_type
             if array_element_type == StandardSqlTypeNames.STRUCT:  # noqa: E721
                 sql_type.array_element_type.struct_type = (
                     standard_sql.StandardSqlStructType(

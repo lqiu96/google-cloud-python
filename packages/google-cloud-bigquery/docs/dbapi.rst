@@ -64,7 +64,7 @@ PEP 249 Notes and Limitations
   statement. Call ``close()`` explicitly when finished.
 - **Thread safety**: ``threadsafety = 2``. Threads may share the module and
   ``Connection`` instances, but not ``Cursor`` instances.
-- **Array size**: :attr:`~google.cloud.bigquery.dbapi.Cursor.arraysize`
+- **Array size**: ``Cursor.arraysize``
   defaults to ``None`` (rather than ``1``) and is passed as ``page_size`` when
   fetching query results. When ``arraysize`` is ``None``,
   :meth:`~google.cloud.bigquery.dbapi.Cursor.fetchmany` defaults to fetching 1

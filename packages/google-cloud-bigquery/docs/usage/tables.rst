@@ -220,7 +220,7 @@ BigQuery does not allow policy tags and data policies on the same column. To
 remove the last data policy from a column, use ``ALTER COLUMN SET OPTIONS`` with
 ``data_policies = []``. Serializing an empty array does not change the service's
 policy-removal behavior. See `Mask data with data policies directly on a column
-<https://docs.cloud.google.com/bigquery/docs/column-data-masking>`_
+<https://docs.cloud.google.com/bigquery/docs/column-data-masking#data-policies-on-column>`_
 for permissions and service limitations.
 
 Updating a Table
@@ -259,7 +259,7 @@ more duplicate inserts. See also:
 `Streaming inserts <https://docs.cloud.google.com/bigquery/quotas#streaming_inserts>`_.
 
 Add an empty column to the existing table with the
-:func:`~google.cloud.bigquery.client.Client.update_table` method:
+:meth:`~google.cloud.bigquery.client.Client.update_table` method:
 
 .. literalinclude:: ../samples/add_empty_column.py
    :language: python

@@ -150,7 +150,7 @@ Note:
       duplicate rows are unacceptable.
     - For new high-volume or exactly-once streaming workloads, use the BigQuery
       Storage Write API in ``google-cloud-bigquery-storage``:
-      https://docs.cloud.google.com/bigquery/docs/write-api.
+      https://docs.cloud.google.com/bigquery/docs/write-api-grpc.
 """
 
 
@@ -239,7 +239,7 @@ DEFAULT_JOB_RETRY = retry.Retry(
 Applies when a query job finishes in state ``DONE`` with a transient job
 execution reason (``jobBackendError``, ``jobInternalError``, or
 ``jobRateLimitExceeded``) as well as transient request errors matched by
-``_should_retry`` (unwrapping :class:`~google.api_core.exceptions.RetryError`
+:data:`DEFAULT_RETRY` (unwrapping :class:`~google.api_core.exceptions.RetryError`
 causes). Retrying a failed job submits a new server-side job with a new job ID.
 Automatic job retry is disabled when a caller supplies an explicit ``job_id``.
 

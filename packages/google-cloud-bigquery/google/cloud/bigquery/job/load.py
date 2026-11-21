@@ -76,11 +76,15 @@ class LoadJobConfig(_JobConfig):
     :data:`True`.
 
     Note:
-        CSV-only options such as :attr:`ignore_unknown_values`,
-        :attr:`max_bad_records`, :attr:`field_delimiter`, and
-        :attr:`skip_leading_rows` do not apply when
-        :meth:`~google.cloud.bigquery.client.Client.load_table_from_dataframe`
-        serializes data through intermediate Parquet format.
+        CSV-only options such as :attr:`field_delimiter`,
+        :attr:`skip_leading_rows`, and :attr:`quote_character` are rejected
+        with ``400 BadRequest`` on non-CSV loads (including Parquet loads
+        from
+        :meth:`~google.cloud.bigquery.client.Client.load_table_from_dataframe`).
+        :attr:`ignore_unknown_values` and :attr:`max_bad_records` are
+        accepted on Parquet loads, though ``load_table_from_dataframe``
+        merges all DataFrame columns into ``job_config.schema`` so extra
+        DataFrame columns still fail schema validation.
     """
 
     def __init__(self, **kwargs) -> None:
@@ -158,7 +162,7 @@ class LoadJobConfig(_JobConfig):
         """Connection properties.
 
         See
-        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.connection_properties
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/ConnectionProperty
 
         .. versionadded:: 3.7.0
         """
@@ -197,7 +201,7 @@ class LoadJobConfig(_JobConfig):
         otherwise runs load job in non-session mode.
 
         See
-        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.create_session
+        https://docs.cloud.google.com/bigquery/docs/sessions
 
         .. versionadded:: 3.7.0
         """
@@ -349,9 +353,11 @@ class LoadJobConfig(_JobConfig):
     def ignore_unknown_values(self):
         """Optional[bool]: Ignore extra values not represented in the table schema.
 
-        Applies to CSV and JSON loads. This option is ignored when
+        Applies to CSV, JSON, and Parquet loads. When
         :meth:`~google.cloud.bigquery.client.Client.load_table_from_dataframe`
-        serializes data through intermediate Parquet format.
+        loads via intermediate Parquet format, all DataFrame columns are
+        merged into ``job_config.schema`` before upload, so extra DataFrame
+        columns still fail schema validation against an existing table.
 
         See:
         https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.ignore_unknown_values
@@ -379,9 +385,7 @@ class LoadJobConfig(_JobConfig):
     def max_bad_records(self):
         """Optional[int]: Number of invalid rows to ignore.
 
-        Applies to CSV and JSON loads. This option is ignored when
-        :meth:`~google.cloud.bigquery.client.Client.load_table_from_dataframe`
-        serializes data through intermediate Parquet format.
+        Accepted on CSV, JSON, and Parquet loads.
 
         See:
         https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.max_bad_records

@@ -242,7 +242,7 @@ class TableReference(_TableBase):
     """TableReferences are pointers to tables.
 
     See
-    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#tablereference
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/TableReference
 
     Args:
         dataset_ref: A pointer to the dataset
@@ -470,7 +470,7 @@ class Table(_TableBase):
     """Tables represent a set of rows whose values correspond to a schema.
 
     See
-    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource-table
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
 
     Args:
         table_ref (Union[google.cloud.bigquery.table.TableReference, str]):
@@ -1947,13 +1947,13 @@ class RowIterator(HTTPIterator):
             ``ARROW`` results. ``ReadRows`` requests the same options.
 
     Note:
-        - ``RowIterator`` is a single-pass iterable, not a reusable sequence.
-          Call ``iter(rows)`` before ``next()``, and do not iterate the same
-          instance more than once (re-iterating raises :class:`ValueError`).
-        - Mixing row or :attr:`pages` iteration with :meth:`to_dataframe` or
-          :meth:`to_arrow` disables the BigQuery Storage Read API because
-          paging has already started (and fails if the iterator is already
-          exhausted).
+        - ``RowIterator`` is a single-pass iterator, not a reusable sequence.
+          ``next(rows)`` yields rows directly, and calling ``iter(rows)`` after
+          ``next(rows)`` or iterating the same instance more than once raises
+          :class:`ValueError`.
+        - Calling :meth:`to_dataframe`, :meth:`to_dataframe_iterable`,
+          :meth:`to_arrow`, or :meth:`to_arrow_iterable` after starting row or
+          :attr:`pages` iteration raises :class:`ValueError`.
         - When ``query_results_format`` is ``"ARROW"``, row iteration
           (``__iter__``, ``__next__``, and :attr:`pages`) raises
           :class:`ValueError`. Use :meth:`to_arrow`, :meth:`to_arrow_iterable`,
@@ -2339,7 +2339,8 @@ class RowIterator(HTTPIterator):
             - Consuming the returned generator exhausts this ``RowIterator``.
             - Even when ``bqstorage_client`` is supplied, this method falls back
               silently to REST when there is no backing table, ``max_results``
-              is set, paging has already started, or most rows are already
+              is set, a ``page_token`` is already set (for example via
+              ``list_rows(..., page_token=...)``), or most rows are already
               cached in the first page. Missing
               ``bigquery.readsessions.create`` IAM permission raises
               :class:`~google.api_core.exceptions.PermissionDenied` rather than
@@ -2485,8 +2486,9 @@ class RowIterator(HTTPIterator):
               ``UserWarning`` is emitted and download falls back to REST.
               Download also falls back silently to REST when there is no
               backing table (such as stateless ``JOB_CREATION_OPTIONAL``
-              queries), ``max_results`` is set, paging has already started, or
-              most rows are already cached in the first page. Missing
+              queries), ``max_results`` is set, a ``page_token`` is already set
+              (for example via ``list_rows(..., page_token=...)``), or most
+              rows are already cached in the first page. Missing
               ``bigquery.readsessions.create`` IAM permission raises
               :class:`~google.api_core.exceptions.PermissionDenied` rather than
               falling back to REST. Pass ``create_bqstorage_client=False`` to
@@ -2635,7 +2637,8 @@ class RowIterator(HTTPIterator):
             - Consuming the returned generator exhausts this ``RowIterator``.
             - Even when ``bqstorage_client`` is supplied, this method falls back
               silently to REST when there is no backing table, ``max_results``
-              is set, paging has already started, or most rows are already
+              is set, a ``page_token`` is already set (for example via
+              ``list_rows(..., page_token=...)``), or most rows are already
               cached in the first page. Missing
               ``bigquery.readsessions.create`` IAM permission raises
               :class:`~google.api_core.exceptions.PermissionDenied` rather than
@@ -2955,8 +2958,9 @@ class RowIterator(HTTPIterator):
               ``UserWarning`` is emitted and download falls back to REST.
               Download also falls back silently to REST when there is no
               backing table (such as stateless ``JOB_CREATION_OPTIONAL``
-              queries), ``max_results`` is set, paging has already started, or
-              most rows are already cached in the first page. Missing
+              queries), ``max_results`` is set, a ``page_token`` is already set
+              (for example via ``list_rows(..., page_token=...)``), or most
+              rows are already cached in the first page. Missing
               ``bigquery.readsessions.create`` IAM permission raises
               :class:`~google.api_core.exceptions.PermissionDenied` rather than
               falling back to REST. Pass ``create_bqstorage_client=False`` to

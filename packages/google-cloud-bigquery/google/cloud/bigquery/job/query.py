@@ -571,8 +571,10 @@ class QueryJobConfig(_JobConfig):
             :attr:`~google.cloud.bigquery.job.QueryJob.total_bytes_processed`
             and :attr:`~google.cloud.bigquery.job.QueryJob.schema` are populated
             from the initial response. However, if any queried table enforces
-            Row-Level Security (row access policies), BigQuery masks
-            ``total_bytes_processed`` to ``0``. Do not treat ``0`` as a
+            Row-Level Security (row access policies), BigQuery omits
+            ``totalBytesProcessed`` from the response (so
+            ``total_bytes_processed`` is ``None``, or ``0`` in APIs that
+            default omitted fields). Do not treat ``None`` or ``0`` as a
             zero-cost guarantee on RLS-protected tables.
 
         See
@@ -1208,8 +1210,10 @@ class QueryJob(_AsyncJob):
 
         Note:
             For dry-run queries (``dry_run=True``), if any queried table
-            enforces Row-Level Security (row access policies), BigQuery masks
-            ``total_bytes_processed`` to ``0``. Do not treat ``0`` as a
+            enforces Row-Level Security (row access policies), BigQuery omits
+            ``totalBytesProcessed`` from the response (so
+            ``total_bytes_processed`` is ``None``, or ``0`` in APIs that
+            default omitted fields). Do not treat ``None`` or ``0`` as a
             zero-cost guarantee on RLS-protected tables.
 
         See:
@@ -1667,8 +1671,8 @@ class QueryJob(_AsyncJob):
             ]]):
                 The client-side timeout in seconds governing both the overall
                 wait loop and the per-RPC HTTP transport timeout. Calls to
-                ``jobs.getQueryResults`` enforce a minimum 120-second floor on
-                smaller timeouts. Timing out raises
+                ``jobs.getQueryResults`` enforce a minimum HTTP transport
+                timeout floor on smaller timeouts. Timing out raises
                 ``concurrent.futures.TimeoutError`` and does not cancel the
                 running server job. If ``None`` or unset, wait indefinitely for
                 the job to finish.

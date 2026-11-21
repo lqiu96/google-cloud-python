@@ -49,9 +49,12 @@ class Connection(object):
         - Multi-statement client transactions are not supported. :meth:`commit`
           is a no-op and ``rollback()`` is not implemented.
         - When ``prefer_bqstorage_client=True``, cursor fetch calls require the
-          ``bigquery.readsessions.create`` IAM permission and raise
-          :class:`~google.api_core.exceptions.PermissionDenied` if missing.
-          Pass ``prefer_bqstorage_client=False`` to force REST reads.
+          ``bigquery.readsessions.create`` IAM permission whenever the Storage
+          Read API is used (for example, multi-page queries with
+          ``google-cloud-bigquery-storage`` installed) and raise
+          :class:`~google.api_core.exceptions.PermissionDenied` if missing
+          (small single-page cached queries use REST). Pass
+          ``prefer_bqstorage_client=False`` to force REST reads.
     """
 
     def __init__(
