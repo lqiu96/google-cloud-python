@@ -34,8 +34,8 @@ from google.cloud.datastore_v1.types import entity as entity_pb2
 def _get_meaning(value_pb, is_list=False):
     """Get the meaning from a protobuf value.
 
-    :type value_pb: :class:`.entity_pb2.Value._pb`
-    :param value_pb: The *raw* protobuf value to be checked for an
+    :type value_pb: :class:`google.cloud.datastore_v1.types.Value`
+    :param value_pb: The *raw* protobuf value (``._pb``) to be checked for an
                      associated meaning.
 
     :type is_list: bool
@@ -70,13 +70,13 @@ def _get_meaning(value_pb, is_list=False):
 def _new_value_pb(entity_pb, name):
     """Add (by name) a new ``Value`` protobuf to an entity protobuf.
 
-    :type entity_pb: :class:`.entity_pb2.Entity`
+    :type entity_pb: :class:`google.cloud.datastore_v1.types.Entity`
     :param entity_pb: An entity protobuf to add a new property to.
 
     :type name: str
     :param name: The name of the new property.
 
-    :rtype: :class:`.entity_pb2.Value`
+    :rtype: :class:`google.cloud.datastore_v1.types.Value`
     :returns: The new ``Value`` protobuf that was added to the entity.
     """
     # TODO(microgenerator): shouldn't need this. the issue is that
@@ -91,11 +91,21 @@ def entity_from_protobuf(pb):
     The protobuf should be one returned from the Cloud Datastore
     Protobuf API.
 
-    :type pb: :class:`.entity_pb2.Entity`
+    .. note::
+
+        Timestamp properties are converted to timezone-aware UTC
+        ``DatetimeWithNanoseconds`` objects. For non-empty array properties,
+        all elements must share the same ``exclude_from_indexes`` flag.
+        Empty list properties do not retain their ``exclude_from_indexes``
+        flag after round-tripping through protobuf.
+
+    :type pb: :class:`google.cloud.datastore_v1.types.Entity`
     :param pb: The Protobuf representing the entity.
 
     :rtype: :class:`google.cloud.datastore.entity.Entity`
     :returns: The entity derived from the protobuf.
+    :raises: :class:`ValueError` if an array property mixes indexed and
+             unindexed elements.
     """
     if isinstance(pb, entity_pb2.Entity):
         pb = pb._pb
@@ -161,7 +171,7 @@ def _set_pb_meaning_from_entity(entity, name, value, value_pb, is_list=False):
     :type value: object
     :param value: The current value stored as property ``name``.
 
-    :type value_pb: :class:`.entity_pb2.Value`
+    :type value_pb: :class:`google.cloud.datastore_v1.types.Value`
     :param value_pb: The protobuf value to add meaning / meanings to.
 
     :type is_list: bool
@@ -206,10 +216,21 @@ def _set_pb_meaning_from_entity(entity, name, value, value_pb, is_list=False):
 def entity_to_protobuf(entity):
     """Converts an entity into a protobuf.
 
+    .. note::
+
+        ``entity.exclude_from_indexes`` matches top-level property names only
+        (dotted paths have no effect). To exclude a single field inside a
+        nested object while indexing sibling fields, store an embedded
+        :class:`~google.cloud.datastore.entity.Entity` with its own
+        ``exclude_from_indexes`` instead of a plain :class:`dict`. For list
+        properties, ``exclude_from_indexes`` is set on each element rather
+        than on the outer ``ArrayValue``. Indexed :class:`str` (UTF-8) and
+        :class:`bytes` values are limited to 1,500 bytes by Datastore.
+
     :type entity: :class:`google.cloud.datastore.entity.Entity`
     :param entity: The entity to be turned into a protobuf.
 
-    :rtype: :class:`.entity_pb2.Entity`
+    :rtype: :class:`google.cloud.datastore_v1.types.Entity`
     :returns: The protobuf representing the entity.
     """
     entity_pb = entity_pb2.Entity()
@@ -255,12 +276,12 @@ def get_read_options(
     :param transaction_id: A transaction identifier (may be null).
 
     :type read_time: datetime
-    :param read_time: Read data from the specified time (may be null). This feature is in private preview.
+    :param read_time: Read data from the specified time (may be null).
 
     :type new_transaction_options: :class:`google.cloud.datastore_v1.types.TransactionOptions`
     :param new_transaction_options: Options for a new transaction.
 
-    :rtype: :class:`.datastore_pb2.ReadOptions`
+    :rtype: :class:`google.cloud.datastore_v1.types.ReadOptions`
     :returns: The read options corresponding to the inputs.
     :raises: :class:`ValueError` if more than one of ``eventual==True``,
             ``transaction_id``, ``read_time``, and ``new_transaction_options`` is specified.
@@ -314,7 +335,7 @@ def key_from_protobuf(pb):
     The protobuf should be one returned from the Cloud Datastore
     Protobuf API.
 
-    :type pb: :class:`.entity_pb2.Key`
+    :type pb: :class:`google.cloud.datastore_v1.types.Key`
     :param pb: The Protobuf representing the key.
 
     :rtype: :class:`google.cloud.datastore.key.Key`
@@ -353,14 +374,22 @@ def _pb_attr_value(val):
     returns the attribute name as well as a properly formatted value.
 
     Certain value types need to be coerced into a different type (such
-    as a `datetime.datetime` into an integer timestamp, or a
-    `google.cloud.datastore.key.Key` into a Protobuf representation.  This
-    function handles that for you.
+    as a :class:`datetime.datetime` into a
+    :class:`google.protobuf.timestamp_pb2.Timestamp`, or a
+    :class:`~google.cloud.datastore.key.Key` into a Protobuf representation).
+    This function handles that for you.
 
     .. note::
-       Values which are "text" ('unicode' in Python2, 'str' in Python3) map
-       to 'string_value' in the datastore;  values which are "bytes"
-       ('str' in Python2, 'bytes' in Python3) map to 'blob_value'.
+
+        - Values of type :class:`str` map to ``string_value`` in Datastore,
+          and values of type :class:`bytes` map to ``blob_value`` without
+          encoding or decoding.
+        - Naive :class:`datetime.datetime` values are treated as UTC, aware
+          datetimes are converted to UTC, and sub-microsecond nanoseconds are
+          truncated.
+        - :class:`int` values must fit in signed 64-bit range. Unsupported
+          types such as :class:`datetime.date`, :class:`decimal.Decimal`,
+          :class:`tuple`, and :class:`set` raise :class:`ValueError`.
 
     For example:
 
@@ -377,13 +406,14 @@ def _pb_attr_value(val):
 
     :type val:
         :class:`datetime.datetime`, :class:`google.cloud.datastore.key.Key`,
-        bool, float, integer, bytes, str, unicode,
+        bool, float, int, bytes, str,
         :class:`google.cloud.datastore.entity.Entity`, dict, list,
         :class:`google.cloud.datastore.helpers.GeoPoint`, NoneType
     :param val: The value to be scrutinized.
 
     :rtype: tuple
     :returns: A tuple of the attribute name and proper value type.
+    :raises: :class:`ValueError` if ``val`` has an unsupported type.
     """
 
     if isinstance(val, datetime.datetime):
@@ -424,18 +454,17 @@ def _get_value_from_value_pb(pb):
 
     The Cloud Datastore Protobuf API returns a Property Protobuf which
     has one value set and the rest blank.  This function retrieves the
-    the one value provided.
+    one value provided.
 
     Some work is done to coerce the return value into a more useful type
     (particularly in the case of a timestamp value, or a key value).
 
-    :type pb: :class:`.entity_pb2.Value._pb`
-    :param pb: The *raw* Value Protobuf.
+    :type pb: :class:`google.cloud.datastore_v1.types.Value`
+    :param pb: The *raw* Value Protobuf (``._pb``).
 
     :rtype: object
     :returns: The value provided by the Protobuf.
-    :raises: :class:`ValueError <exceptions.ValueError>` if no value type
-             has been set.
+    :raises: :class:`ValueError` if no value type has been set.
     """
     value_type = pb.WhichOneof("value_type")
 
@@ -490,14 +519,15 @@ def _set_protobuf_value(value_pb, val):
     rather than inferring the type.
 
     Some value types (entities, keys, lists) cannot be directly
-    assigned; this function handles them correctly.
+    assigned. This function handles them correctly.
 
-    :type value_pb: :class:`.entity_pb2.Value`
+    :type value_pb: :class:`google.cloud.datastore_v1.types.Value`
     :param value_pb: The value protobuf to which the value is being assigned.
 
-    :type val: :class:`datetime.datetime`, boolean, float, integer, string,
-               :class:`google.cloud.datastore.key.Key`,
-               :class:`google.cloud.datastore.entity.Entity`
+    :type val: :class:`datetime.datetime`, bool, float, int, str, bytes, list,
+               dict, NoneType, :class:`google.cloud.datastore.key.Key`,
+               :class:`google.cloud.datastore.entity.Entity`,
+               :class:`google.cloud.datastore.helpers.GeoPoint`
     :param val: The value to be assigned.
     """
     attr, val = _pb_attr_value(val)
@@ -534,11 +564,15 @@ def set_database_id_to_request(request, database_id=None):
 class GeoPoint(object):
     """Simple container for a geo point value.
 
+    Import this class from ``google.cloud.datastore.helpers`` (it is not
+    re-exported from ``google.cloud.datastore``). Serializes to
+    :class:`google.type.latlng_pb2.LatLng`.
+
     :type latitude: float
-    :param latitude: Latitude of a point.
+    :param latitude: Latitude of a point in degrees (range ``[-90.0, 90.0]``).
 
     :type longitude: float
-    :param longitude: Longitude of a point.
+    :param longitude: Longitude of a point in degrees (range ``[-180.0, 180.0]``).
     """
 
     def __init__(self, latitude, longitude):
@@ -548,7 +582,7 @@ class GeoPoint(object):
     def to_protobuf(self):
         """Convert the current object to protobuf.
 
-        :rtype: :class:`google.type.latlng_pb2.LatLng`.
+        :rtype: :class:`google.type.latlng_pb2.LatLng`
         :returns: The current point as a protobuf.
         """
         return latlng_pb2.LatLng(latitude=self.latitude, longitude=self.longitude)

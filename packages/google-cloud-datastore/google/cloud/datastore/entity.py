@@ -29,12 +29,19 @@ class Entity(dict):
     case, the datastore service will automatically assign an ID to the
     partial key.
 
-    Entities in this API act like dictionaries with extras built in that
-    allow you to delete or persist the data stored on the entity.
+    Entities in this API act like dictionaries with attached metadata
+    (``key`` and ``exclude_from_indexes``). ``Entity`` itself has no
+    persistence or delete methods. Persist or delete entities through
+    :class:`~google.cloud.datastore.client.Client`,
+    :class:`~google.cloud.datastore.batch.Batch`, or
+    :class:`~google.cloud.datastore.transaction.Transaction`.
 
-    Entities are mutable and act like a subclass of a dictionary.
-    This means you could take an existing entity and change the key
-    to duplicate the object.
+    Entities are mutable and subclass :class:`dict`. Standard dictionary
+    copying operations such as ``dict(entity)``, ``{**entity}``, or
+    ``entity.copy()`` return a plain :class:`dict` and drop ``key``,
+    ``exclude_from_indexes``, and internal meaning metadata. You can duplicate
+    an entity by constructing a new ``Entity`` with a different key and
+    copying its properties and ``exclude_from_indexes``.
 
     Use :meth:`~google.cloud.datastore.client.Client.get` to retrieve an
     existing entity:
@@ -58,7 +65,7 @@ class Entity(dict):
         >>> client.get(key)
         <Entity('EntityKind', 1234) {'property': 'value'}>
 
-    You can the set values on the entity just like you would on any
+    You can set values on the entity just like you would on any
     other dictionary.
 
     .. doctest:: entity-ctor
@@ -77,25 +84,31 @@ class Entity(dict):
     * :class:`~google.cloud.datastore.key.Key`
     * :class:`bool`
     * :class:`float`
-    * :class:`int` (as well as :class:`long` in Python 2)
-    * ``unicode`` (called ``str`` in Python 3)
-    * ``bytes`` (called ``str`` in Python 2)
-    * :class:`~google.cloud.datastore.helpers.GeoPoint`
+    * :class:`int` (signed 64-bit integer)
+    * :class:`str`
+    * :class:`bytes`
+    * :class:`~google.cloud.datastore.helpers.GeoPoint` (imported from
+      ``google.cloud.datastore.helpers``)
     * :data:`None`
 
     In addition, three container types are supported:
 
-    * :class:`list`
+    * :class:`list` (nested lists such as ``[[1, 2]]`` are rejected by
+      Datastore)
     * :class:`~google.cloud.datastore.entity.Entity`
-    * :class:`dict` (will just be treated like an ``Entity`` without
-      a key or ``exclude_from_indexes``)
+    * :class:`dict` (treated like an embedded ``Entity`` without a key or
+      ``exclude_from_indexes``)
 
-    Each entry in a list must be one of the value types (basic or
-    container) and each value in an
+    Each entry in a list must be one of the supported value types (basic or
+    non-list container) and each value in an
     :class:`~google.cloud.datastore.entity.Entity` must as well. In
     this case an :class:`~google.cloud.datastore.entity.Entity` **as a
     container** acts as a :class:`dict`, but also has the special annotations
     of ``key`` and ``exclude_from_indexes``.
+
+    Unsupported Python types such as :class:`datetime.date`,
+    :class:`decimal.Decimal`, :class:`tuple`, and :class:`set` raise
+    :class:`ValueError` during serialization.
 
     And you can treat an entity like a regular Python dictionary:
 
@@ -116,20 +129,43 @@ class Entity(dict):
 
     .. note::
 
-        When saving an entity to the backend, values which are "text"
-        (``unicode`` in Python2, ``str`` in Python3) will be saved using
-        the 'text_value' field, after being encoded to UTF-8.  When
-        retrieved from the back-end, such values will be decoded to "text"
-        again.  Values which are "bytes" (``str`` in Python2, ``bytes`` in
-        Python3), will be saved using the 'blob_value' field, without
-        any decoding / encoding step.
+        - All properties are indexed by default. Indexed :class:`str` (UTF-8
+          encoded, stored in ``string_value``) and :class:`bytes` (stored raw
+          in ``blob_value``) values are limited to 1,500 bytes. Larger values
+          (up to 1,000,000 bytes, within the 1 MiB minus 4 bytes total entity
+          limit) must be listed in ``exclude_from_indexes``.
+        - The ``exclude_from_indexes`` constructor argument requires a
+          :class:`tuple` or :class:`list` (passing a :class:`set` or
+          :class:`str` raises :class:`TypeError`). On an existing or fetched
+          entity, ``entity.exclude_from_indexes`` is a mutable :class:`set`
+          that can be updated in place (for example,
+          ``entity.exclude_from_indexes.add("body")``).
+        - ``exclude_from_indexes`` matches top-level property names only.
+          Dotted paths such as ``"nested.large_text"`` have no effect. Adding
+          ``"nested"`` excludes the entire nested object. To exclude a single
+          field inside a nested object while indexing its siblings, store an
+          embedded ``Entity(exclude_from_indexes=("large_text",))`` instead of
+          a plain :class:`dict`.
+        - Excluding a :class:`list` property marks every element unindexed.
+          Empty lists (``[]``) lose their exclusion flag on round-trip, and
+          reading an entity written by another client whose array mixes
+          indexed and unindexed elements raises :class:`ValueError`.
+        - Naive :class:`datetime.datetime` values are treated as UTC (not
+          local time), aware datetimes are converted to UTC, and sub-microsecond
+          nanoseconds are truncated on write. Values read back as
+          timezone-aware UTC ``DatetimeWithNanoseconds`` objects, so comparing
+          a read-back timestamp against a naive ``datetime`` raises
+          :class:`TypeError`.
+        - See https://docs.cloud.google.com/datastore/docs/concepts/entities
+          and https://docs.cloud.google.com/datastore/docs/concepts/indexes#unindexed_properties
+          for entity, value type, and indexing limits.
 
     :type key: :class:`google.cloud.datastore.key.Key`
     :param key: Optional key to be set on entity.
 
-    :type exclude_from_indexes: tuple of string
-    :param exclude_from_indexes: Names of fields whose values are not to be
-                                 indexed for this entity.
+    :type exclude_from_indexes: tuple of str or list of str
+    :param exclude_from_indexes: Top-level property names whose values are not
+                                 to be indexed for this entity.
     """
 
     def __init__(self, key=None, exclude_from_indexes=()):
@@ -146,8 +182,11 @@ class Entity(dict):
     def __eq__(self, other):
         """Compare two entities for equality.
 
-        Entities compare equal if their keys compare equal and their
-        properties compare equal.
+        Entities compare equal if their keys, ``exclude_from_indexes`` sets,
+        internal ``_meanings`` mappings, and properties all compare equal.
+        Because partial keys never compare equal to any key (including
+        themselves), an entity with a partial key never compares equal to
+        another entity or to itself.
 
         :rtype: bool
         :returns: True if the entities compare equal, else False.
@@ -165,8 +204,9 @@ class Entity(dict):
     def __ne__(self, other):
         """Compare two entities for inequality.
 
-        Entities compare equal if their keys compare equal and their
-        properties compare equal.
+        Entities compare equal if their keys, ``exclude_from_indexes`` sets,
+        internal ``_meanings`` mappings, and properties all compare equal.
+        Entities with partial keys always compare unequal.
 
         :rtype: bool
         :returns: False if the entities compare equal, else True.

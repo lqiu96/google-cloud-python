@@ -93,7 +93,7 @@ class Key(object):
        >>> Key('EntityKind', 1234, project=project, database='mydb')
        <Key('EntityKind', 1234), project=my-special-pony, database=mydb>
 
-    :type path_args: tuple of string and integer
+    :type path_args: tuple of str and int
     :param path_args: May represent a partial (odd length) or full (even
                       length) key path.
 
@@ -101,12 +101,30 @@ class Key(object):
 
     Accepted keyword arguments are
 
-    * namespace (string): A namespace identifier for the key.
-    * project (string): The project associated with the key.
-    * database (string): The database associated with the key.
+    * namespace (str): A namespace identifier for the key.
+    * project (str): The project associated with the key.
+    * database (str): The database associated with the key.
     * parent (:class:`~google.cloud.datastore.key.Key`): The parent of the key.
 
-    The project argument is required unless it has been set implicitly.
+    The ``project`` argument is required unless ``parent`` is provided
+    (``Key`` does not infer a project from environment variables).
+
+    .. note::
+
+        - Integer IDs and string names occupy distinct keyspaces. For example,
+          ``client.key("Task", 123)`` and ``client.key("Task", "123")`` refer
+          to two different entities.
+        - Prefer :meth:`~google.cloud.datastore.client.Client.key`, which
+          inherits ``project``, ``database``, and ``namespace`` from the
+          client (passing ``project`` or ``database`` to ``client.key()``
+          raises :class:`TypeError`). Direct ``Key(...)`` construction
+          requires ``project`` unless ``parent`` is supplied.
+        - ``Key`` instances are immutable. Call :meth:`completed_key` to
+          create a new complete key from a partial key.
+        - Partial keys never compare equal to any key, including themselves
+          (``partial_key == partial_key`` is ``False``).
+        - See https://docs.cloud.google.com/datastore/docs/concepts/entities
+          for key structure and identifier rules.
     """
 
     def __init__(self, *path_args, **kwargs):
@@ -124,7 +142,8 @@ class Key(object):
     def __eq__(self, other):
         """Compare two keys for equality.
 
-        Incomplete keys never compare equal to any other key.
+        Incomplete (partial) keys never compare equal to any key, including
+        themselves (``partial_key == partial_key`` is ``False``).
 
         Completed keys compare equal if they have the same path, project,
         database, and namespace.
@@ -150,7 +169,8 @@ class Key(object):
     def __ne__(self, other):
         """Compare two keys for inequality.
 
-        Incomplete keys never compare equal to any other key.
+        Incomplete (partial) keys never compare equal to any key, including
+        themselves.
 
         Completed keys compare equal if they have the same path, project,
         database, and namespace.
@@ -274,7 +294,12 @@ class Key(object):
     def completed_key(self, id_or_name):
         """Creates new key from existing partial key by adding final ID/name.
 
-        :type id_or_name: str or integer
+        Because ``Key`` is immutable, this returns a new ``Key`` instance
+        without modifying the original partial key. Integer IDs and string
+        names occupy distinct keyspaces (``123`` and ``"123"`` produce
+        different keys).
+
+        :type id_or_name: str or int
         :param id_or_name: ID or name to be added to the key.
 
         :rtype: :class:`google.cloud.datastore.key.Key`
@@ -301,7 +326,7 @@ class Key(object):
     def to_protobuf(self):
         """Return a protobuf corresponding to the key.
 
-        :rtype: :class:`.entity_pb2.Key`
+        :rtype: :class:`google.cloud.datastore_v1.types.Key`
         :returns: The protobuf representing the key.
         """
         key = _entity_pb2.Key()
@@ -324,32 +349,32 @@ class Key(object):
         return key
 
     def to_legacy_urlsafe(self, location_prefix=None):
-        """Convert to a base64 encode urlsafe string for App Engine.
+        """Convert to a URL-safe base64 bytestring for legacy App Engine keys.
 
-        This is intended to work with the "legacy" representation of a
-        datastore "Key" used within Google App Engine (a so-called
-        "Reference"). The returned string can be used as the ``urlsafe``
-        argument to ``ndb.Key(urlsafe=...)``. The base64 encoded values
-        will have padding removed.
-
-        .. note::
-
-            The string returned by ``to_legacy_urlsafe`` is equivalent, but
-            not identical, to the string returned by ``ndb``. The location
-            prefix may need to be specified to obtain identical urlsafe
-            keys.
+        This encodes the legacy App Engine ``Reference`` protobuf used by
+        ``google-cloud-ndb`` (accepted by ``ndb.Key(urlsafe=...)``), not the
+        Datastore v1 ``Key`` protobuf. The returned bytes are therefore
+        incompatible with SDK encoders that serialize Datastore v1 keys (such
+        as Java ``Key.toUrlSafe()``). Base64 ``=`` padding is stripped.
 
         .. note::
-            to_legacy_urlsafe only supports the default database
+
+            - The bytes returned by ``to_legacy_urlsafe`` are equivalent, but
+              may not be byte-for-byte identical, to ``ndb.Key.urlsafe()``
+              unless ``location_prefix`` is set to match the App Engine app ID
+              prefix (for example, ``"s~"`` or ``"e~"``).
+            - ``to_legacy_urlsafe`` returns :class:`bytes` (not :class:`str`)
+              and only supports the default database.
 
         :type location_prefix: str
         :param location_prefix: The location prefix of an App Engine project
-                                ID. Often this value is 's~', but may also be
-                                'e~', or other location prefixes currently
-                                unknown.
+                                ID. Often this value is ``'s~'``, but may also
+                                be ``'e~'``, or another location prefix.
 
         :rtype: bytes
         :returns: A bytestring containing the key encoded as URL-safe base64.
+        :raises: :class:`ValueError` if ``self.database`` is set (non-default
+                 database).
         """
         if self.database:
             raise ValueError("to_legacy_urlsafe only supports the default database")
@@ -369,22 +394,24 @@ class Key(object):
 
     @classmethod
     def from_legacy_urlsafe(cls, urlsafe):
-        """Convert urlsafe string to :class:`~google.cloud.datastore.key.Key`.
+        """Convert a legacy App Engine urlsafe key to :class:`~google.cloud.datastore.key.Key`.
 
-        This is intended to work with the "legacy" representation of a
-        datastore "Key" used within Google App Engine (a so-called
-        "Reference"). This assumes that ``urlsafe`` was created within an App
-        Engine app via something like ``ndb.Key(...).urlsafe()``.
+        This decodes the legacy App Engine ``Reference`` protobuf used by
+        ``google-cloud-ndb`` (for example, produced by ``ndb.Key(...).urlsafe()``
+        or :meth:`to_legacy_urlsafe`). It does not decode Datastore v1 ``Key``
+        protobuf encodings such as Java ``Key.toUrlSafe()``.
 
         .. note::
-            from_legacy_urlsafe only supports the default database.
+            ``from_legacy_urlsafe`` only supports the default database.
 
-        :type urlsafe: bytes or unicode
-        :param urlsafe: The base64 encoded (ASCII) string corresponding to a
-                        datastore "Key" / "Reference".
+        :type urlsafe: bytes or str
+        :param urlsafe: The base64-encoded ASCII bytes or string corresponding
+                        to a legacy App Engine ``Reference`` protobuf.
 
-        :rtype: :class:`~google.cloud.datastore.key.Key`.
+        :rtype: :class:`~google.cloud.datastore.key.Key`
         :returns: The key corresponding to ``urlsafe``.
+        :raises: :class:`ValueError` if the decoded reference specifies a
+                 non-empty ``database_id``.
         """
         urlsafe = _to_bytes(urlsafe, encoding="ascii")
         padding = b"=" * (-len(urlsafe) % 4)
@@ -536,8 +563,8 @@ class Key(object):
     def __repr__(self):
         """String representation of this key.
 
-        Includes the project and database, but suppresses them if they are
-        equal to the default values.
+        Always includes ``project``. Includes ``database`` only when set
+        (suppressed for the default database). Does not include ``namespace``.
         """
         repr = "<Key%s, project=%s" % (self._flat_path, self.project)
         if self.database:
@@ -548,21 +575,21 @@ class Key(object):
 def _validate_project(project, parent):
     """Ensure the project is set appropriately.
 
-    If ``parent`` is passed, skip the test (it will be checked / fixed up
-    later).
+    If ``parent`` is passed, skip the test (it will be checked / inherited
+    from ``parent`` in :meth:`Key._combine_args`).
 
-    If ``project`` is unset, attempt to infer the project from the environment.
+    This helper does not check environment variables.
 
-    :type project: str
-    :param project: A project.
+    :type project: str or None
+    :param project: A project ID, or ``None`` when inheriting from ``parent``.
 
     :type parent: :class:`google.cloud.datastore.key.Key`
     :param parent: (Optional) The parent of the key or ``None``.
 
-    :rtype: str
-    :returns: The ``project`` passed in, or implied from the environment.
-    :raises: :class:`ValueError` if ``project`` is ``None`` and no project
-             can be inferred from the parent.
+    :rtype: str or None
+    :returns: The ``project`` passed in (may be ``None`` if ``parent`` is set).
+    :raises: :class:`ValueError` if both ``project`` and ``parent`` are
+             ``None``.
     """
     if parent is None:
         if project is None:
@@ -605,7 +632,7 @@ def _check_database_id(database_id):
 
     Here, "empty" means either ``None`` or ``""``.
 
-    :type database_id: unicode
+    :type database_id: str
     :param database_id: The ``database_id`` field from a "Reference" protobuf.
 
     :raises: :exc:`ValueError` if the ``database_id`` is not empty.
@@ -621,7 +648,7 @@ def _add_id_or_name(flat_path, element_pb, empty_allowed):
     :type flat_path: list
     :param flat_path: List of accumulated path parts.
 
-    :type element_pb: :class:`._app_engine_key_pb2.Path.Element`
+    :type element_pb: :class:`google.cloud.datastore._app_engine_key_pb2.Path.Element`
     :param element_pb: The element containing ID or name.
 
     :type empty_allowed: bool
@@ -667,7 +694,7 @@ def _get_flat_path(path_pb):
 
     would convert to ``('parent', 59, 'child', 'naem')``.
 
-    :type path_pb: :class:`._app_engine_key_pb2.Path`
+    :type path_pb: :class:`google.cloud.datastore._app_engine_key_pb2.Path`
     :param path_pb: Legacy protobuf "Path" object (from a "Reference").
 
     :rtype: tuple
@@ -685,20 +712,20 @@ def _get_flat_path(path_pb):
 
 
 def _to_legacy_path(dict_path):
-    """Convert a tuple of ints and strings in a legacy "Path".
+    """Convert a list of key-part dictionaries into a legacy "Path".
 
-    .. note:
+    .. note::
 
         This assumes, but does not verify, that each entry in
         ``dict_path`` is valid (i.e. doesn't have more than one
         key out of "name" / "id").
 
-    :type dict_path: lsit
+    :type dict_path: list
     :param dict_path: The "structured" path for a key, i.e. it
                       is a list of dictionaries, each of which has
                       "kind" and one of "name" / "id" as keys.
 
-    :rtype: :class:`._app_engine_key_pb2.Path`
+    :rtype: :class:`google.cloud.datastore._app_engine_key_pb2.Path`
     :returns: The legacy path corresponding to ``dict_path``.
     """
     elements = []
