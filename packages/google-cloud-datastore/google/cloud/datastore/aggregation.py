@@ -1,18 +1,18 @@
-# # Copyright 2022 Google LLC
-# #
-# # Licensed under the Apache License, Version 2.0 (the "License");
-# # you may not use this file except in compliance with the License.
-# # You may obtain a copy of the License at
-# #
-# #     http://www.apache.org/licenses/LICENSE-2.0
-# #
-# # Unless required by applicable law or agreed to in writing, software
-# # distributed under the License is distributed on an "AS IS" BASIS,
-# # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# # See the License for the specific language governing permissions and
-# # limitations under the License.
+# Copyright 2022 Google LLC
 #
-# """Create / interact with Google Cloud Datastore aggregation queries."""
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Create / interact with Google Cloud Datastore aggregation queries."""
 import abc
 from abc import ABC
 
@@ -45,11 +45,8 @@ class CountAggregation(BaseAggregation):
     Representation of a "Count" aggregation query.
 
     :type alias: str
-    :param alias: The alias for the aggregation.
-
-    :type value: int
-    :param value: The resulting value from the aggregation.
-
+    :param alias: (Optional) The alias for the aggregation. If omitted,
+        Datastore assigns a server-generated alias such as ``property_1``.
     """
 
     def __init__(self, alias=None):
@@ -70,11 +67,11 @@ class SumAggregation(BaseAggregation):
     Representation of a "Sum" aggregation query.
 
     :type property_ref: str
-    :param property_ref: The property_ref for the aggregation.
+    :param property_ref: The property name to sum.
 
-    :type value: int
-    :param value: The resulting value from the aggregation.
-
+    :type alias: str
+    :param alias: (Optional) The alias for the aggregation. If omitted,
+        Datastore assigns a server-generated alias such as ``property_1``.
     """
 
     def __init__(self, property_ref, alias=None):
@@ -94,14 +91,14 @@ class SumAggregation(BaseAggregation):
 
 class AvgAggregation(BaseAggregation):
     """
-    Representation of a "Avg" aggregation query.
+    Representation of an "Avg" aggregation query.
 
     :type property_ref: str
-    :param property_ref: The property_ref for the aggregation.
+    :param property_ref: The property name to average.
 
-    :type value: int
-    :param value: The resulting value from the aggregation.
-
+    :type alias: str
+    :param alias: (Optional) The alias for the aggregation. If omitted,
+        Datastore assigns a server-generated alias such as ``property_1``.
     """
 
     def __init__(self, property_ref, alias=None):
@@ -121,14 +118,14 @@ class AvgAggregation(BaseAggregation):
 
 class AggregationResult(object):
     """
-    A class representing result from Aggregation Query
+    A class representing a single result from an Aggregation Query.
 
     :type alias: str
-    :param alias: The alias for the aggregation.
+    :param alias: The alias for the aggregation (either explicitly provided or
+        server-generated such as ``property_1``).
 
-    :type value: int
+    :type value: int or float or None
     :param value: The resulting value from the aggregation.
-
     """
 
     def __init__(self, alias, value):
@@ -142,8 +139,25 @@ class AggregationResult(object):
 class AggregationQuery(object):
     """An Aggregation query against the Cloud Datastore.
 
-    This class serves as an abstraction for creating aggregations over query
-    in the Cloud Datastore.
+    This class serves as an abstraction for creating aggregations over a query
+    in the Cloud Datastore. It inherits ``project``, ``namespace``, and
+    ``explain_options`` from the wrapped
+    :class:`~google.cloud.datastore.query.Query`, and inherits ``database``
+    and ``current_transaction`` from ``client``.
+
+    .. note::
+
+        - :meth:`count`, :meth:`sum`, and :meth:`avg` return ``self`` for
+          fluent chaining, whereas :meth:`add_aggregation` and
+          :meth:`add_aggregations` return ``None``.
+        - Always supply explicit ``alias=`` names so results can be matched
+          reliably (otherwise Datastore assigns server-generated names such as
+          ``property_1``). Duplicate aliases fail with
+          :class:`~google.api_core.exceptions.BadRequest`.
+        - Iterating the iterator returned by :meth:`fetch` yields a
+          :class:`list` of :class:`AggregationResult` objects per result
+          bucket rather than individual :class:`AggregationResult` instances.
+        - See https://docs.cloud.google.com/datastore/docs/aggregation-queries.
 
     :type client: :class:`google.cloud.datastore.client.Client`
     :param client: The client used to connect to Datastore.
@@ -153,9 +167,9 @@ class AggregationQuery(object):
 
     :type explain_options: :class:`~google.cloud.datastore.ExplainOptions`
     :param explain_options: (Optional) Options to enable query profiling for
-        this query. When set, explain_metrics will be available on the iterator
-        returned by query.fetch().
-        If not passed, will use value from given query.
+        this query. When set, ``explain_metrics`` will be available on the
+        iterator returned by ``fetch()``. If not passed, falls back to the
+        value from ``query``.
     """
 
     def __init__(
@@ -201,10 +215,14 @@ class AggregationQuery(object):
 
     def count(self, alias=None):
         """
-        Adds a count over the nested query
+        Adds a count over the nested query.
 
         :type alias: str
-        :param alias: (Optional) The alias for the count
+        :param alias: (Optional) The alias for the count. If omitted,
+            Datastore assigns a server-generated alias such as ``property_1``.
+
+        :rtype: :class:`~google.cloud.datastore.aggregation.AggregationQuery`
+        :returns: This aggregation query (for chaining).
         """
         count_aggregation = CountAggregation(alias=alias)
         self._aggregations.append(count_aggregation)
@@ -212,10 +230,17 @@ class AggregationQuery(object):
 
     def sum(self, property_ref, alias=None):
         """
-        Adds a sum over the nested query
+        Adds a sum over the nested query.
 
         :type property_ref: str
-        :param property_ref: The property_ref for the sum
+        :param property_ref: The property name to sum.
+
+        :type alias: str
+        :param alias: (Optional) The alias for the sum. If omitted, Datastore
+            assigns a server-generated alias such as ``property_1``.
+
+        :rtype: :class:`~google.cloud.datastore.aggregation.AggregationQuery`
+        :returns: This aggregation query (for chaining).
         """
         sum_aggregation = SumAggregation(property_ref=property_ref, alias=alias)
         self._aggregations.append(sum_aggregation)
@@ -223,10 +248,17 @@ class AggregationQuery(object):
 
     def avg(self, property_ref, alias=None):
         """
-        Adds a avg over the nested query
+        Adds an average over the nested query.
 
         :type property_ref: str
-        :param property_ref: The property_ref for the sum
+        :param property_ref: The property name to average.
+
+        :type alias: str
+        :param alias: (Optional) The alias for the average. If omitted,
+            Datastore assigns a server-generated alias such as ``property_1``.
+
+        :rtype: :class:`~google.cloud.datastore.aggregation.AggregationQuery`
+        :returns: This aggregation query (for chaining).
         """
         avg_aggregation = AvgAggregation(property_ref=property_ref, alias=alias)
         self._aggregations.append(avg_aggregation)
@@ -234,18 +266,26 @@ class AggregationQuery(object):
 
     def add_aggregation(self, aggregation):
         """
-        Adds an aggregation operation to the nested query
+        Adds an aggregation operation to the nested query.
+
+        Returns ``None`` (unlike :meth:`count`, :meth:`sum`, and :meth:`avg`,
+        which return ``self`` for chaining).
 
         :type aggregation: :class:`google.cloud.datastore.aggregation.BaseAggregation`
-        :param aggregation: An aggregation operation, e.g. a CountAggregation
+        :param aggregation: An aggregation operation, such as a
+            :class:`CountAggregation`.
         """
         self._aggregations.append(aggregation)
 
     def add_aggregations(self, aggregations):
         """
-        Adds a list of aggregations to the nested query
+        Adds a list of aggregations to the nested query.
+
+        Returns ``None`` (unlike :meth:`count`, :meth:`sum`, and :meth:`avg`,
+        which return ``self`` for chaining).
+
         :type aggregations: list
-        :param aggregations: a list of aggregation operations
+        :param aggregations: A list of :class:`BaseAggregation` operations.
         """
         self._aggregations.extend(aggregations)
 
@@ -258,7 +298,23 @@ class AggregationQuery(object):
         timeout=None,
         read_time=None,
     ):
-        """Execute the Aggregation Query; return an iterator for the aggregation results.
+        """Execute the Aggregation Query and return an iterator for the aggregation results.
+
+        .. note::
+
+            - Iterating the returned :class:`AggregationResultIterator` yields
+              a :class:`list` of :class:`AggregationResult` objects per result
+              bucket rather than individual :class:`AggregationResult`
+              instances (for example,
+              ``for batch in agg_query.fetch(): for res in batch: ...``).
+            - Always pass explicit ``alias=`` names to avoid server-generated
+              names such as ``property_1``.
+            - ``limit`` applies to the wrapped nested query (capping how many
+              entities are aggregated), not to the number of aggregation
+              results returned.
+            - When using ``ExplainOptions(analyze=True)``, exhaust the
+              returned iterator before reading
+              :attr:`AggregationResultIterator.explain_metrics`.
 
         For example:
 
@@ -281,31 +337,40 @@ class AggregationQuery(object):
             >>> bobby = datastore.Entity(client.key('Person', 3456))
             >>> bobby['name'] = 'Bobby'
             >>> client.put_multi([andy, sally, bobby])
-            >>> query = client.query(kind='Andy')
+            >>> query = client.query(kind='Person')
             >>> aggregation_query = client.aggregation_query(query)
             >>> result = aggregation_query.count(alias="total").fetch(limit=5)
-            >>> result
-            <google.cloud.datastore.aggregation.AggregationResultIterator object at ...>
+            >>> for batch in result:
+            ...     for agg in batch:
+            ...         print(agg.alias, agg.value)
+            total 3
 
         .. testcleanup:: aggregation-query-fetch
 
             client.delete(andy.key)
+            client.delete(sally.key)
+            client.delete(bobby.key)
 
         :type client: :class:`google.cloud.datastore.client.Client`
         :param client: (Optional) client used to connect to datastore.
                        If not supplied, uses the query's value.
 
+        :type limit: int
+        :param limit: (Optional) Maximum number of matching entities from the
+                      nested query to include in the aggregation.
+
         :type eventual: bool
-        :param eventual: (Optional) Defaults to strongly consistent (False).
-                                    Setting True will use eventual consistency,
-                                    but cannot be used inside a transaction or
-                                    with read_time, otherwise will raise
-                                    ValueError.
+        :param eventual: (Optional) Defaults to strongly consistent (``False``).
+                                    Setting ``True`` will use eventual
+                                    consistency, but cannot be used inside a
+                                    transaction or with ``read_time``,
+                                    otherwise will raise :class:`ValueError`.
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            requests will be retried using a default configuration in gRPC
+            transport (no default retry in HTTP transport).
 
         :type timeout: float
         :param timeout:
@@ -318,7 +383,7 @@ class AggregationQuery(object):
             (Optional) use read_time read consistency, cannot be used inside a
             transaction or with eventual consistency, or will raise ValueError.
 
-        :rtype: :class:`AggregationIterator`
+        :rtype: :class:`AggregationResultIterator`
         :returns: The iterator for the aggregation query.
         """
         if client is None:
@@ -336,26 +401,36 @@ class AggregationQuery(object):
 
 
 class AggregationResultIterator(page_iterator.Iterator):
-    """Represent the state of a given execution of a Query.
+    """Represent the state of a given execution of an AggregationQuery.
+
+    Iterating this object yields a :class:`list` of
+    :class:`AggregationResult` objects per result bucket rather than
+    individual :class:`AggregationResult` instances.
 
     :type aggregation_query: :class:`~google.cloud.datastore.aggregation.AggregationQuery`
-    :param aggregation_query: AggregationQuery object holding permanent configuration (i.e.
-                  things that don't change on with each page in
-                  a results set).
+    :param aggregation_query: AggregationQuery object holding permanent
+                  configuration (i.e. things that don't change with each
+                  page in a results set).
 
     :type client: :class:`~google.cloud.datastore.client.Client`
     :param client: The client used to make a request.
 
+    :type limit: int
+    :param limit: (Optional) Maximum number of matching entities from the
+                  nested query to include in the aggregation.
+
     :type eventual: bool
-    :param eventual: (Optional) Defaults to strongly consistent (False).
-                                Setting True will use eventual consistency,
+    :param eventual: (Optional) Defaults to strongly consistent (``False``).
+                                Setting ``True`` will use eventual consistency,
                                 but cannot be used inside a transaction or
-                                with read_time, otherwise will raise ValueError.
+                                with ``read_time``, otherwise will raise
+                                :class:`ValueError`.
 
     :type retry: :class:`google.api_core.retry.Retry`
     :param retry:
         A retry object used to retry requests. If ``None`` is specified,
-        requests will be retried using a default configuration.
+        requests will be retried using a default configuration in gRPC
+        transport (no default retry in HTTP transport).
 
     :type timeout: float
     :param timeout:
@@ -366,7 +441,7 @@ class AggregationResultIterator(page_iterator.Iterator):
     :type read_time: datetime
     :param read_time: (Optional) Runs the query with read time consistency.
                       Cannot be used with eventual consistency or inside a
-                      transaction, otherwise will raise ValueError. This feature is in private preview.
+                      transaction, otherwise will raise ValueError.
     """
 
     def __init__(
@@ -395,13 +470,13 @@ class AggregationResultIterator(page_iterator.Iterator):
         self._more_results = True
 
     def _build_protobuf(self):
-        """Build a query protobuf.
+        """Build an aggregation query protobuf.
 
         Relies on the current state of the iterator.
 
         :rtype:
-            :class:`.query_pb2.AggregationQuery.Aggregation`
-        :returns: The aggregation_query protobuf object for the current
+            :class:`google.cloud.datastore_v1.types.AggregationQuery`
+        :returns: The ``AggregationQuery`` protobuf object for the current
                   state of the iterator.
         """
         pb = self._aggregation_query._to_pb()
@@ -410,13 +485,14 @@ class AggregationResultIterator(page_iterator.Iterator):
         return pb
 
     def _process_query_results(self, response_pb):
-        """Process the response from a datastore query.
+        """Process the response from a datastore aggregation query.
 
-        :type response_pb: :class:`.datastore_pb2.RunQueryResponse`
-        :param response_pb: The protobuf response from a ``runQuery`` request.
+        :type response_pb: :class:`google.cloud.datastore_v1.types.RunAggregationQueryResponse`
+        :param response_pb: The protobuf response from a
+            ``runAggregationQuery`` request.
 
         :rtype: iterable
-        :returns: The next page of entity results.
+        :returns: The next page of aggregation results.
         :raises ValueError: If ``more_results`` is an unexpected value.
         """
 
@@ -435,7 +511,7 @@ class AggregationResultIterator(page_iterator.Iterator):
     def _next_page(self):
         """Get the next page in the iterator.
 
-        :rtype: :class:`~google.cloud.iterator.Page`
+        :rtype: :class:`~google.api_core.page_iterator.Page`
         :returns: The next page in the iterator (or :data:`None` if
                   there are no pages left).
         """
@@ -504,15 +580,27 @@ class AggregationResultIterator(page_iterator.Iterator):
     @property
     def explain_metrics(self) -> ExplainMetrics:
         """
-        Get the metrics associated with the query execution.
-        Metrics are only available when explain_options is set on the query. If
-        ExplainOptions.analyze is False, only plan_summary is available. If it is
-        True, execution_stats is also available.
+        Get the metrics associated with the aggregation query execution.
+
+        Metrics are only available when ``explain_options`` is set on the
+        query or aggregation query at construction time.
+
+        - When ``ExplainOptions(analyze=False)`` (the default), no aggregation
+          results are returned. Accessing ``explain_metrics`` sends the plan
+          request on demand and populates ``plan_summary`` only (reading
+          ``execution_stats`` raises :class:`QueryExplainError`).
+        - When ``ExplainOptions(analyze=True)``, both ``plan_summary`` and
+          ``execution_stats`` are returned, but you must exhaust the iterator
+          first (for example, ``list(iterator)``) before accessing
+          ``explain_metrics`` or :class:`QueryExplainError` is raised.
+
+        See https://docs.cloud.google.com/datastore/docs/query-explain-analyze.
 
         :rtype: :class:`~google.cloud.datastore.query_profile.ExplainMetrics`
         :returns: The metrics associated with the query execution.
         :raises: :class:`~google.cloud.datastore.query_profile.QueryExplainError`
-            if explain_metrics is not available on the query.
+            if ``explain_options`` is not set or the query has not finished
+            iterating when ``analyze=True``.
         """
         if self._explain_metrics is not None:
             return self._explain_metrics
@@ -540,8 +628,8 @@ def _item_to_aggregation_result(iterator, pb):
         :class:`proto.marshal.collections.maps.MapComposite`
     :param pb: The aggregation properties pb from the aggregation query result
 
-    :rtype: :class:`google.cloud.datastore.aggregation.AggregationResult`
-    :returns: The list of AggregationResults
+    :rtype: list of :class:`google.cloud.datastore.aggregation.AggregationResult`
+    :returns: The list of :class:`AggregationResult` objects in this bucket.
     """
     results = [
         AggregationResult(alias=k, value=pb[k].integer_value or pb[k].double_value)

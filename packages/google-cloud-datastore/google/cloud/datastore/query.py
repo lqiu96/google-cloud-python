@@ -50,7 +50,12 @@ class BaseFilter(ABC):
 
 
 class PropertyFilter(BaseFilter):
-    """Class representation of a Property Filter"""
+    """Class representation of a Property Filter.
+
+    Import from ``google.cloud.datastore.query`` (do not mix with
+    ``google.cloud.datastore_v1.PropertyFilter``). Pass instances to
+    :meth:`Query.add_filter` using the ``filter=`` keyword argument.
+    """
 
     def __init__(self, property_name, operator, value):
         if property_name == KEY_PROPERTY_NAME and not isinstance(value, Key):
@@ -116,7 +121,11 @@ class BaseCompositeFilter(BaseFilter):
 
 
 class Or(BaseCompositeFilter):
-    """Class representation of an OR Filter."""
+    """Class representation of an OR Filter.
+
+    Import from ``google.cloud.datastore.query`` and pass to
+    :meth:`Query.add_filter` using the ``filter=`` keyword argument.
+    """
 
     def __init__(self, filters):
         super().__init__(
@@ -125,7 +134,11 @@ class Or(BaseCompositeFilter):
 
 
 class And(BaseCompositeFilter):
-    """Class representation of an AND Filter."""
+    """Class representation of an AND Filter.
+
+    Import from ``google.cloud.datastore.query`` and pass to
+    :meth:`Query.add_filter` using the ``filter=`` keyword argument.
+    """
 
     def __init__(self, filters):
         super().__init__(
@@ -160,9 +173,12 @@ class Query(object):
         (Optional) key of the ancestor to which this query's results are
         restricted.
 
-    :type filters: tuple[str, str, str]
-    :param filters: Property filters applied by this query. The sequence
-        is ``(property_name, operator, value)``.
+    :type filters: sequence of :class:`BaseFilter` or tuple[str, str, Any]
+    :param filters: Property or composite filters applied by this query. Prefer
+        :class:`PropertyFilter`, :class:`And`, or :class:`Or` instances
+        imported from ``google.cloud.datastore.query``. Legacy 3-tuples
+        ``(property_name, operator, value)`` are also accepted but emit a
+        :class:`UserWarning`.
 
     :type projection: sequence of string
     :param projection:  fields returned as part of query results.
@@ -176,11 +192,18 @@ class Query(object):
 
     :type explain_options: :class:`~google.cloud.datastore.ExplainOptions`
     :param explain_options: (Optional) Options to enable query profiling for
-        this query. When set, explain_metrics will be available on the iterator
-        returned by query.fetch().
+        this query. When set, ``explain_metrics`` will be available on the
+        iterator returned by ``query.fetch()``.
 
-    :raises: ValueError if ``project`` is not passed and no implicit
-             default is set.
+    .. note::
+
+        - Queries combining filters across multiple properties, or filtering
+          and ordering on different properties, generally require a composite
+          index. Missing indexes raise
+          :class:`~google.api_core.exceptions.FailedPrecondition`.
+        - See https://docs.cloud.google.com/datastore/docs/concepts/queries
+          and https://docs.cloud.google.com/datastore/docs/concepts/indexes
+          for query restrictions and index requirements.
     """
 
     OPERATORS = {
@@ -325,9 +348,9 @@ class Query(object):
     def filters(self):
         """Filters set on the query.
 
-        :rtype: tuple[str, str, str]
-        :returns: The filters set on the query. The sequence is
-            ``(property_name, operator, value)``.
+        :rtype: list of :class:`BaseFilter` or tuple[str, str, Any]
+        :returns: The filters set on the query as :class:`BaseFilter`
+            instances (or legacy ``(property_name, operator, value)`` tuples).
         """
         return self._filters[:]
 
@@ -341,7 +364,9 @@ class Query(object):
     ):
         """Filter the query based on a property name, operator and a value.
 
-        Expressions take the form of::
+        Import :class:`PropertyFilter`, :class:`And`, and :class:`Or` from
+        ``google.cloud.datastore.query`` (they are not re-exported at
+        ``google.cloud.datastore``). Expressions take the form of::
 
           .add_filter(
             filter=PropertyFilter('<property>', '<operator>', <value>)
@@ -349,9 +374,11 @@ class Query(object):
 
         where property is a property stored on the entity in the datastore
         and operator is one of ``OPERATORS``
-        (ie, ``=``, ``<``, ``<=``, ``>``, ``>=``, ``!=``, ``IN``, ``NOT_IN``):
+        (``=``, ``<``, ``<=``, ``>``, ``>=``, ``!=``, ``IN``, ``NOT_IN``).
 
-        Both AND and OR operations are supported by passing in a `CompositeFilter` object to the `filter` parameter::
+        Both AND and OR operations are supported by passing a
+        :class:`BaseCompositeFilter` (:class:`And` or :class:`Or`) object to
+        the ``filter`` keyword parameter::
 
            .add_filter(
                filter=And(
@@ -372,6 +399,18 @@ class Query(object):
                )
            )
 
+        .. note::
+
+            - Always pass :class:`PropertyFilter`, :class:`And`, or
+              :class:`Or` via the ``filter=`` keyword argument. Passing them
+              positionally raises :class:`ValueError`, and positional
+              ``(property_name, operator, value)`` arguments emit a
+              :class:`UserWarning`.
+            - Repeated ``add_filter()`` calls combine with logical ``AND``.
+            - Multi-property filters or inequality filters combined with sort
+              orders may require a composite index (otherwise Datastore raises
+              :class:`~google.api_core.exceptions.FailedPrecondition`).
+
         .. testsetup:: query-filter
 
             import uuid
@@ -388,26 +427,30 @@ class Query(object):
             >>> query = query.add_filter(filter=PropertyFilter('age', '>', 50))
 
         :type property_name: str
-        :param property_name: A property name.
+        :param property_name: (Deprecated) A property name for positional use.
 
         :type operator: str
-        :param operator: One of ``=``, ``<``, ``<=``, ``>``, ``>=``, ``!=``, ``IN``, ``NOT_IN``.
+        :param operator: (Deprecated) One of ``=``, ``<``, ``<=``, ``>``,
+                         ``>=``, ``!=``, ``IN``, ``NOT_IN``.
 
         :type value: :class:`int`, :class:`str`, :class:`bool`,
                      :class:`float`, :class:`NoneType`,
                      :class:`datetime.datetime`,
                      :class:`google.cloud.datastore.key.Key`
-        :param value: The value to filter on.
+        :param value: (Deprecated) The value to filter on.
 
-        :type filter: :class:`CompositeFilter`, :class:`PropertyFiler`
-        :param filter: A instance of a `BaseFilter`, either a `CompositeFilter` or `PropertyFilter`.
+        :type filter: :class:`BaseCompositeFilter` or :class:`PropertyFilter`
+        :param filter: An instance of :class:`BaseFilter`, such as
+                       :class:`PropertyFilter`, :class:`And`, or :class:`Or`.
 
         :rtype: :class:`~google.cloud.datastore.query.Query`
-        :returns: A query object.
+        :returns: This query object (for chaining).
 
-        :raises: :class:`ValueError` if ``operation`` is not one of the
-                 specified values, or if a filter names ``'__key__'`` but
-                 passes an invalid value (a key is required).
+        :raises: :class:`ValueError` if ``operator`` is not one of the
+                 specified values, if a filter names ``'__key__'`` with a
+                 non-``Key`` value, if a :class:`BaseFilter` is passed
+                 positionally, or if both positional arguments and ``filter``
+                 are provided.
         """
         if isinstance(property_name, PropertyFilter):
             raise ValueError(
@@ -446,7 +489,15 @@ class Query(object):
 
     @property
     def projection(self):
-        """Fields names returned by the query.
+        """Field names returned by the query.
+
+        .. warning::
+
+            Projection queries return partial
+            :class:`~google.cloud.datastore.entity.Entity` instances containing
+            only the projected properties and ``key``. Never pass them to
+            :meth:`~google.cloud.datastore.client.Client.put` or unprojected
+            properties will be overwritten and deleted on the server.
 
         :rtype: sequence of string
         :returns: Names of fields in query results.
@@ -455,7 +506,14 @@ class Query(object):
 
     @projection.setter
     def projection(self, projection):
-        """Set the fields returned the query.
+        """Set the fields returned by the query.
+
+        .. warning::
+
+            Projection queries return partial
+            :class:`~google.cloud.datastore.entity.Entity` objects. Do not pass
+            them to :meth:`~google.cloud.datastore.client.Client.put` because
+            unprojected properties will be deleted on the server.
 
         :type projection: str or sequence of strings
         :param projection: Each value is a string giving the name of a
@@ -466,7 +524,17 @@ class Query(object):
         self._projection[:] = projection
 
     def keys_only(self):
-        """Set the projection to include only keys."""
+        """Set the projection to include only keys.
+
+        .. warning::
+
+            A keys-only query yields empty
+            :class:`~google.cloud.datastore.entity.Entity` shells with only
+            ``entity.key`` populated (not bare
+            :class:`~google.cloud.datastore.key.Key` objects). Never pass
+            yielded shells to :meth:`~google.cloud.datastore.client.Client.put`
+            or all stored properties on those entities will be deleted.
+        """
         self._projection[:] = [KEY_PROPERTY_NAME]
 
     def key_filter(self, key, operator="="):
@@ -539,7 +607,37 @@ class Query(object):
         timeout=None,
         read_time=None,
     ):
-        """Execute the Query; return an iterator for the matching entities.
+        """Execute the Query and return an iterator for the matching entities.
+
+        .. note::
+
+            - ``fetch()`` is lazy (no RPC is sent until iterated) and returns a
+              single-pass :class:`~collections.abc.Iterable` (call
+              ``iter(query_iter)`` before ``next()``). Inside a
+              ``with client.transaction():`` block, exhaust the iterator before
+              exiting so the query executes within the transaction.
+            - ``start_cursor`` and ``end_cursor`` are URL-safe base64-encoded
+              :class:`bytes` (or ASCII :class:`str`) matching
+              ``query_iter.next_page_token`` (not raw protobuf bytes).
+            - ``query_iter.pages`` yields server-sized RPC batches rather than
+              ``limit``-sized pages when ``limit`` exceeds one server batch.
+              For cursor pagination with ``limit=N``, exhaust the iterator
+              (for example, ``entities = list(query_iter)``) and pass
+              ``query_iter.next_page_token`` as ``start_cursor`` on the next
+              call while ``next_page_token`` is not ``None`` (it is populated
+              when ``more_results`` indicates more results after the limit and
+              set to ``None`` on ``NO_MORE_RESULTS``).
+            - ``offset`` is ignored when ``start_cursor`` is provided. Large
+              offsets loop internally in chunks of 1,000 skipped results and
+              incur billed small/index reads, so prefer cursors for pagination.
+            - Queries using :attr:`projection` or :meth:`keys_only` yield
+              partial or empty :class:`~google.cloud.datastore.entity.Entity`
+              shells (not bare :class:`~google.cloud.datastore.key.Key`
+              objects). Do not pass them to ``client.put()`` or unprojected
+              properties will be overwritten.
+            - When ``explain_options=ExplainOptions(analyze=True)`` is set on
+              the query, exhaust the returned iterator before reading
+              :attr:`Iterator.explain_metrics`.
 
         For example:
 
@@ -579,27 +677,32 @@ class Query(object):
         :type offset: int
         :param offset: (Optional) offset passed through to the iterator.
 
-        :type start_cursor: bytes
-        :param start_cursor: (Optional) cursor passed through to the iterator.
+        :type start_cursor: bytes or str
+        :param start_cursor: (Optional) URL-safe base64 cursor (such as
+                             ``iterator.next_page_token``) to start reading
+                             results from. When set, ``offset`` is ignored.
 
-        :type end_cursor: bytes
-        :param end_cursor: (Optional) cursor passed through to the iterator.
+        :type end_cursor: bytes or str
+        :param end_cursor: (Optional) URL-safe base64 cursor to stop reading
+                           results at.
 
         :type client: :class:`google.cloud.datastore.client.Client`
         :param client: (Optional) client used to connect to datastore.
                        If not supplied, uses the query's value.
 
         :type eventual: bool
-        :param eventual: (Optional) Defaults to strongly consistent (False).
-                                    Setting True will use eventual consistency,
-                                    but cannot be used inside a transaction or
-                                    with read_time, otherwise will raise
-                                    ValueError.
+        :param eventual: (Optional) Defaults to strongly consistent (``False``)
+                                    in Firestore in Datastore mode. Setting
+                                    ``True`` requests eventual consistency,
+                                    which cannot be used inside a transaction
+                                    or with ``read_time`` (raises
+                                    :class:`ValueError`).
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            requests will be retried using a default configuration in gRPC
+            transport (no default retry in HTTP transport).
 
         :type timeout: float
         :param timeout:
@@ -635,9 +738,16 @@ class Query(object):
 class Iterator(page_iterator.Iterator):
     """Represent the state of a given execution of a Query.
 
+    This class is a single-pass :class:`~collections.abc.Iterable` (call
+    ``iter(query_iter)`` before ``next()``). After exhausting the iterator,
+    ``next_page_token`` holds the URL-safe base64 cursor to resume pagination
+    (or ``None`` when ``more_results`` is ``NO_MORE_RESULTS``). Note that
+    ``pages`` yields server-sized RPC batches rather than ``limit``-sized
+    pages.
+
     :type query: :class:`~google.cloud.datastore.query.Query`
     :param query: Query object holding permanent configuration (i.e.
-                  things that don't change on with each page in
+                  things that don't change with each page in
                   a results set).
 
     :type client: :class:`~google.cloud.datastore.client.Client`
@@ -647,26 +757,29 @@ class Iterator(page_iterator.Iterator):
     :param limit: (Optional) Limit the number of results returned.
 
     :type offset: int
-    :param offset: (Optional) Offset used to begin a query.
+    :param offset: (Optional) Offset used to begin a query. Ignored when
+                   ``start_cursor`` is set.
 
-    :type start_cursor: bytes
-    :param start_cursor: (Optional) Cursor to begin paging through
-                         query results.
+    :type start_cursor: bytes or str
+    :param start_cursor: (Optional) URL-safe base64 cursor to begin paging
+                         through query results.
 
-    :type end_cursor: bytes
-    :param end_cursor: (Optional) Cursor to end paging through
+    :type end_cursor: bytes or str
+    :param end_cursor: (Optional) URL-safe base64 cursor to end paging through
                        query results.
 
     :type eventual: bool
-    :param eventual: (Optional) Defaults to strongly consistent (False).
-                                Setting True will use eventual consistency,
+    :param eventual: (Optional) Defaults to strongly consistent (``False``).
+                                Setting ``True`` will use eventual consistency,
                                 but cannot be used inside a transaction or
-                                with read_time, otherwise will raise ValueError.
+                                with ``read_time``, otherwise will raise
+                                :class:`ValueError`.
 
     :type retry: :class:`google.api_core.retry.Retry`
     :param retry:
         A retry object used to retry requests. If ``None`` is specified,
-        requests will be retried using a default configuration.
+        requests will be retried using a default configuration in gRPC
+        transport (no default retry in HTTP transport).
 
     :type timeout: float
     :param timeout:
@@ -677,7 +790,7 @@ class Iterator(page_iterator.Iterator):
     :type read_time: datetime
     :param read_time: (Optional) Runs the query with read time consistency.
                       Cannot be used with eventual consistency or inside a
-                      transaction, otherwise will raise ValueError. This feature is in private preview.
+                      transaction, otherwise will raise ValueError.
     """
 
     next_page_token = None
@@ -719,7 +832,7 @@ class Iterator(page_iterator.Iterator):
         Relies on the current state of the iterator.
 
         :rtype:
-            :class:`.query_pb2.Query`
+            :class:`google.cloud.datastore_v1.types.Query`
         :returns: The query protobuf object for the current
                   state of the iterator.
         """
@@ -748,7 +861,7 @@ class Iterator(page_iterator.Iterator):
     def _process_query_results(self, response_pb):
         """Process the response from a datastore query.
 
-        :type response_pb: :class:`.datastore_pb2.RunQueryResponse`
+        :type response_pb: :class:`google.cloud.datastore_v1.types.RunQueryResponse`
         :param response_pb: The protobuf response from a ``runQuery`` request.
 
         :rtype: iterable
@@ -776,7 +889,7 @@ class Iterator(page_iterator.Iterator):
     def _next_page(self):
         """Get the next page in the iterator.
 
-        :rtype: :class:`~google.cloud.iterator.Page`
+        :rtype: :class:`~google.api_core.page_iterator.Page`
         :returns: The next page in the iterator (or :data:`None` if
                   there are no pages left).
         """
@@ -850,14 +963,26 @@ class Iterator(page_iterator.Iterator):
     def explain_metrics(self) -> ExplainMetrics:
         """
         Get the metrics associated with the query execution.
-        Metrics are only available when explain_options is set on the query. If
-        ExplainOptions.analyze is False, only plan_summary is available. If it is
-        True, execution_stats is also available.
+
+        Metrics are only available when ``explain_options`` is set on the
+        query at construction time.
+
+        - When ``ExplainOptions(analyze=False)`` (the default), no query
+          results are returned. Accessing ``explain_metrics`` sends the plan
+          request on demand and populates ``plan_summary`` only (reading
+          ``execution_stats`` raises :class:`QueryExplainError`).
+        - When ``ExplainOptions(analyze=True)``, both ``plan_summary`` and
+          ``execution_stats`` are returned, but you must exhaust the iterator
+          first (for example, ``list(iterator)``) before accessing
+          ``explain_metrics`` or :class:`QueryExplainError` is raised.
+
+        See https://docs.cloud.google.com/datastore/docs/query-explain-analyze.
 
         :rtype: :class:`~google.cloud.datastore.query_profile.ExplainMetrics`
         :returns: The metrics associated with the query execution.
         :raises: :class:`~google.cloud.datastore.query_profile.QueryExplainError`
-            if explain_metrics is not available on the query.
+            if ``explain_options`` is not set or the query has not finished
+            iterating when ``analyze=True``.
         """
         if self._explain_metrics is not None:
             return self._explain_metrics
@@ -880,7 +1005,7 @@ def _pb_from_query(query):
     :type query: :class:`Query`
     :param query: The source query.
 
-    :rtype: :class:`.query_pb2.Query`
+    :rtype: :class:`google.cloud.datastore_v1.types.Query`
     :returns: A protobuf that can be sent to the protobuf API.  N.b. that
               it does not contain "in-flight" fields for ongoing query
               executions (cursors, offset, limit).
@@ -951,7 +1076,7 @@ def _item_to_entity(iterator, entity_pb):
     :param iterator: The iterator that is currently in use.
 
     :type entity_pb:
-        :class:`.entity_pb2.Entity`
+        :class:`google.cloud.datastore_v1.types.Entity`
     :param entity_pb: An entity protobuf to convert to a native entity.
 
     :rtype: :class:`~google.cloud.datastore.entity.Entity`

@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Query profiling options and explain metrics for Cloud Datastore queries."""
+
 from __future__ import annotations
 
 import datetime
@@ -24,13 +26,31 @@ from google.protobuf.json_format import MessageToDict
 class ExplainOptions:
     """
     Class used to configure query profiling on a query.
-    Set on a query object using the explain_options attribute at query construction time.
+
+    Pass an instance to :class:`~google.cloud.datastore.query.Query` or
+    :class:`~google.cloud.datastore.aggregation.AggregationQuery` via the
+    ``explain_options`` constructor argument (for example,
+    ``client.query(kind="Task", explain_options=ExplainOptions(analyze=True))``).
+
+    .. note::
+
+        - When ``analyze=False`` (the default), Datastore plans the query
+          without executing it and returns no query results. Reading
+          ``iterator.explain_metrics`` triggers the plan request on demand and
+          populates ``plan_summary`` only. Accessing ``execution_stats`` raises
+          :class:`QueryExplainError`.
+        - When ``analyze=True``, Datastore plans and executes the query. You
+          must exhaust the returned iterator (for example, ``list(iterator)``)
+          before reading ``iterator.explain_metrics``, or
+          :class:`QueryExplainError` is raised.
+        - See https://docs.cloud.google.com/datastore/docs/query-explain-analyze.
 
     :type analyze: bool
-    :param analyze: Whether to execute this query. When false (the default),
-        the query will be planned, returning only metrics from the planning stages.
-        When true, the query will be planned and executed, returning the full
-        query results along with both planning and execution stage metrics.
+    :param analyze: Whether to execute this query. When ``False`` (the
+        default), the query is planned without executing and only planning
+        metrics are returned. When ``True``, the query is planned and
+        executed, returning full query results along with both planning and
+        execution metrics.
     """
 
     analyze: bool = False
@@ -56,18 +76,20 @@ class ExecutionStats:
     """
     Execution phase information about a query.
 
-    Only available when explain_options.analyze is True.
+    Only available when ``explain_options.analyze`` is ``True`` and after the
+    query iterator has been exhausted. See
+    https://docs.cloud.google.com/datastore/docs/query-explain-analyze-report-reference.
 
     :type results_returned: int
     :param results_returned: Total number of results returned, including
-        documents, projections, aggregation results, keys.
+        entities, projections, aggregation results, and keys.
     :type execution_duration: datetime.timedelta
     :param execution_duration: Total time to execute the query in the backend.
     :type read_operations: int
     :param read_operations: Total billable read operations.
     :type debug_stats: dict[str, Any]
     :param debug_stats: Debugging statistics from the execution of the query.
-        Note that the debugging stats are subject to change as Firestore evolves
+        Note that the debugging stats are subject to change as Datastore evolves.
     """
 
     results_returned: int
@@ -81,13 +103,14 @@ class ExplainMetrics:
     """
     ExplainMetrics contains information about the planning and execution of a query.
 
-    When explain_options.analyze is false, only plan_summary is available.
-    When explain_options.analyze is true, execution_stats is also available.
+    When ``explain_options.analyze`` is ``False``, only ``plan_summary`` is
+    available and accessing :attr:`execution_stats` raises
+    :class:`QueryExplainError`. When ``explain_options.analyze`` is ``True``,
+    exhaust the query iterator first to read both ``plan_summary`` and
+    :attr:`execution_stats`.
 
     :type plan_summary: PlanSummary
     :param plan_summary: Planning phase information about the query.
-    :type execution_stats: ExecutionStats
-    :param execution_stats: Execution phase information about the query.
     """
 
     plan_summary: PlanSummary
@@ -114,6 +137,16 @@ class ExplainMetrics:
 
     @property
     def execution_stats(self) -> ExecutionStats:
+        """Execution phase information about the query.
+
+        Available only when ``explain_options.analyze=True`` (returned via
+        :class:`_ExplainAnalyzeMetrics`).
+
+        :rtype: :class:`ExecutionStats`
+        :returns: Execution phase statistics for the query.
+        :raises: :class:`QueryExplainError` when ``explain_options.analyze``
+            is ``False``.
+        """
         raise QueryExplainError(
             "execution_stats not available when explain_options.analyze=False."
         )
