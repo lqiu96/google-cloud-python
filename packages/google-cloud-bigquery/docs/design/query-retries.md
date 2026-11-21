@@ -13,20 +13,20 @@ To achieve this goal, the client library only retries an API request relating to
 
 ### API-level retries
 
-Retries for nearly all API requests were [added in 2017](https://github.com/googleapis/google-cloud-python/pull/4148) and are [configurable via a Retry object](https://googleapis.dev/python/google-api-core/latest/retry.html#google.api_core.retry.Retry) passed to the retry argument. Notably, this includes the "query" method on the Python client, corresponding to the [jobs.insert REST API method](https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert). The Python client always populates the [jobReference.jobId](https://cloud.google.com/bigquery/docs/reference/rest/v2/JobReference#FIELDS.job_id) field of the request body. If the BigQuery REST API receives a jobs.insert request for a job with the same ID, the REST API fails because the job already exists.
+Retries for nearly all API requests were [added in 2017](https://github.com/googleapis/google-cloud-python/pull/4148) and are [configurable via a Retry object](https://googleapis.dev/python/google-api-core/latest/retry.html#google.api_core.retry.Retry) passed to the retry argument. Notably, this includes the "query" method on the Python client, corresponding to the [jobs.insert REST API method](https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert). The Python client always populates the [jobReference.jobId](https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/JobReference#FIELDS.job_id) field of the request body. If the BigQuery REST API receives a jobs.insert request for a job with the same ID, the REST API fails because the job already exists.
 
 
 ### jobs.insert and jobs.query API requests
 
 By default, the Python client starts a query using the [jobs.insert REST API
-method](https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert).
+method](https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert).
 Support for the [jobs.query REST API
-method](https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query)
+method](https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query)
 was [added via the `api_method`
 parameter](https://github.com/googleapis/python-bigquery/pull/967) and is
 included in version 3.0 of the Python client library.
 
-The jobs.query REST API method differs from jobs.insert in that it does not accept a job ID. Instead, the [requestId parameter](https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#QueryRequest.FIELDS.request_id) provides a window of idempotency for duplicate requests.
+The jobs.query REST API method differs from jobs.insert in that it does not accept a job ID. Instead, the [requestId parameter](https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#QueryRequest.FIELDS.request_id) provides a window of idempotency for duplicate requests.
 
 
 ### Re-issuing a query
@@ -42,12 +42,12 @@ originally issued only if the query job has failed for a retryable reason.
 
 ### getQueryResults error behavior
 
-The client library uses [the jobs.getQueryResults REST API method](https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults) to wait for a query to finish. This REST API has a unique behavior in that it translates query job failures into HTTP error status codes. To disambiguate these error responses from one that may have occurred further up the REST API stack (such as from the Google load balancer), the client library inspects the error response body.
+The client library uses [the jobs.getQueryResults REST API method](https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults) to wait for a query to finish. This REST API has a unique behavior in that it translates query job failures into HTTP error status codes. To disambiguate these error responses from one that may have occurred further up the REST API stack (such as from the Google load balancer), the client library inspects the error response body.
 
 When the error corresponds to a query job failure, BigQuery populates the
 "errors" array field, with the first element in the list corresponding to the
 error which directly caused the job failure. There are many [error response
-messages](https://cloud.google.com/bigquery/docs/error-messages), but only some
+codes](https://docs.cloud.google.com/bigquery/docs/errors), but only some
 of them indicate that re-issuing the query job may help. For example, if the
 job fails due to invalid query syntax, re-issuing the query won't help. If a
 query job fails due to "backendError" or "rateLimitExceeded", we know that the
@@ -110,6 +110,6 @@ The conditions when it is safe to re-issue a query are different from the condit
 
 The `job_retry` parameter is only used if (1) a query job fails and (2) a job ID is not provided by the developer. This is because it must generate a new job ID (or request ID, depending on the method used to create the query job) to avoid getting the same failed job.
 
-The `job_retry` parameter logic only happens after the client makes a request to the `jobs.getQueryRequest` REST API, which fails. The client examines the exception to determine if this failure was caused by a failed job and that the failure reason (e.g. "backendError" or "rateLimitExceeded") indicates that re-issuing the query may help.
+The `job_retry` parameter logic only happens after the client makes a request to the `jobs.getQueryResults` REST API, which fails. The client examines the exception to determine if this failure was caused by a failed job and that the failure reason (e.g. "backendError" or "rateLimitExceeded") indicates that re-issuing the query may help.
 
 If it is determined that the query job can be re-issued safely, the original logic to issue the query is executed. If the jobs.insert REST API was originally used, a new job ID is generated. Otherwise, if the jobs.query REST API was originally used, a new request ID is generated. All other parts of the request body remain identical to the original request body for the failed query job, and the process repeats until `job_retry` is exhausted.

@@ -11,7 +11,7 @@ policies to tables as they are created:
   dataset will have the value as their expiration period.
 
 See BigQuery documentation for more information on
-`Datasets <https://cloud.google.com/bigquery/docs/datasets>`_.
+`Datasets <https://docs.cloud.google.com/bigquery/docs/datasets>`_.
 
 Listing Datasets
 ^^^^^^^^^^^^^^^^

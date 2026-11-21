@@ -16,7 +16,7 @@ More Examples
   :maxdepth: 2
 
   usage/index
-  Official Google BigQuery How-to Guides <https://cloud.google.com/bigquery/docs/how-to>
+  Official Google BigQuery How-to Guides <https://docs.cloud.google.com/bigquery/docs/introduction>
 
 API Reference
 -------------

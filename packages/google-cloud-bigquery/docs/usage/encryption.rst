@@ -2,9 +2,9 @@ Using Customer Managed Encryption Keys
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Table data is always encrypted at rest, but BigQuery also provides a way for
-you to control what keys it uses to encrypt they data. See `Protecting data
+you to control what keys it uses to encrypt their data. See `Protecting data
 with Cloud KMS keys
-<https://cloud.google.com/bigquery/docs/customer-managed-encryption>`_
+<https://docs.cloud.google.com/bigquery/docs/customer-managed-encryption>`_
 in the BigQuery documentation for more details.
 
 Create a new table, using a customer-managed encryption key from

@@ -2,7 +2,7 @@ Managing Tables
 ~~~~~~~~~~~~~~~
 
 Tables exist within datasets. See BigQuery documentation for more information
-on `Tables <https://cloud.google.com/bigquery/docs/tables>`_.
+on `Tables <https://docs.cloud.google.com/bigquery/docs/tables>`_.
 
 Listing Tables
 ^^^^^^^^^^^^^^
@@ -121,7 +121,7 @@ Load a CSV file from Cloud Storage with the
    :end-before: [END bigquery_load_table_gcs_csv]
 
 See also: `Loading CSV data from Cloud Storage
-<https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv>`_.
+<https://docs.cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv>`_.
 
 Load a JSON file from Cloud Storage:
 
@@ -132,7 +132,7 @@ Load a JSON file from Cloud Storage:
    :end-before: [END bigquery_load_table_gcs_json]
 
 See also: `Loading JSON data from Cloud Storage
-<https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json>`_.
+<https://docs.cloud.google.com/bigquery/docs/loading-data-cloud-storage-json>`_.
 
 Load a Parquet file from Cloud Storage:
 
@@ -143,7 +143,7 @@ Load a Parquet file from Cloud Storage:
    :end-before: [END bigquery_load_table_gcs_parquet]
 
 See also: `Loading Parquet data from Cloud Storage
-<https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet>`_.
+<https://docs.cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet>`_.
 
 Load an Avro file from Cloud Storage:
 
@@ -154,7 +154,7 @@ Load an Avro file from Cloud Storage:
    :end-before: [END bigquery_load_table_gcs_avro]
 
 See also: `Loading Avro data from Cloud Storage
-<https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro>`_.
+<https://docs.cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro>`_.
 
 Load an ORC file from Cloud Storage:
 
@@ -165,7 +165,7 @@ Load an ORC file from Cloud Storage:
    :end-before: [END bigquery_load_table_gcs_orc]
 
 See also: `Loading ORC data from Cloud Storage
-<https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-orc>`_.
+<https://docs.cloud.google.com/bigquery/docs/loading-data-cloud-storage-orc>`_.
 
 Load a CSV file from Cloud Storage and auto-detect schema:
 
@@ -220,7 +220,7 @@ BigQuery does not allow policy tags and data policies on the same column. To
 remove the last data policy from a column, use ``ALTER COLUMN SET OPTIONS`` with
 ``data_policies = []``. Serializing an empty array does not change the service's
 policy-removal behavior. See `Mask data with data policies directly on a column
-<https://cloud.google.com/bigquery/docs/column-data-masking>`_
+<https://docs.cloud.google.com/bigquery/docs/column-data-masking>`_
 for permissions and service limitations.
 
 Updating a Table
@@ -256,10 +256,10 @@ higher write limit:
 
 Mind that inserting data with ``None`` row insert IDs can come at the expense of
 more duplicate inserts. See also:
-`Streaming inserts <https://cloud.google.com/bigquery/quotas#streaming_inserts>`_.
+`Streaming inserts <https://docs.cloud.google.com/bigquery/quotas#streaming_inserts>`_.
 
 Add an empty column to the existing table with the
-:func:`~google.cloud.bigquery.update_table` method:
+:func:`~google.cloud.bigquery.client.Client.update_table` method:
 
 .. literalinclude:: ../samples/add_empty_column.py
    :language: python

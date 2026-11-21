@@ -58,6 +58,16 @@ class Cursor(object):
     Args:
         connection (google.cloud.bigquery.dbapi.Connection):
             A DB-API connection to Google BigQuery.
+
+    Note:
+        - ``Cursor`` instances are not thread-safe (``threadsafety = 2`` allows
+          sharing the module and connections only) and do not implement the
+          context manager protocol (``with`` raises :class:`TypeError`). Call
+          :meth:`close` explicitly when finished.
+        - ``arraysize`` defaults to :data:`None` (a deviation from PEP 249's
+          ``1``) and is forwarded as ``page_size`` when running queries. When
+          ``arraysize`` is :data:`None`, :meth:`fetchmany` defaults to fetching
+          1 row.
     """
 
     def __init__(self, connection):
@@ -81,9 +91,16 @@ class Cursor(object):
         """google.cloud.bigquery.job.query.QueryJob | None: The query job
         created by the last ``execute*()`` call, if a query job was created.
 
-        .. note::
-            If the last ``execute*()`` call was ``executemany()``, this is the
-            last job created by ``executemany()``."""
+        Note:
+            - Accessing this property issues a live ``client.get_job()`` API
+              request every time. Cache the returned object if you need to
+              inspect multiple fields.
+            - Returns :data:`None` before ``execute*()`` is called, or when a
+              stateless query (for example under ``JOB_CREATION_OPTIONAL``)
+              did not create a job (``job_id`` is :data:`None`).
+            - If the last ``execute*()`` call was ``executemany()``, this is
+              the last job created by ``executemany()``.
+        """
         rows = self._query_rows
 
         if rows is None:
@@ -144,7 +161,7 @@ class Cursor(object):
         of modified rows.
 
         Args:
-            query_results (google.cloud.bigquery.query._QueryResults):
+            rows (google.cloud.bigquery.table.RowIterator):
                 Results of a query.
         """
         total_rows = 0
@@ -159,24 +176,29 @@ class Cursor(object):
     def execute(self, operation, parameters=None, job_id=None, job_config=None):
         """Prepare and execute a database operation.
 
-        .. note::
-            When setting query parameters, values which are "text"
-            (``unicode`` in Python2, ``str`` in Python3) will use
-            the 'STRING' BigQuery type. Values which are "bytes" (``str`` in
-            Python2, ``bytes`` in Python3), will use using the 'BYTES' type.
-
-            A `~datetime.datetime` parameter without timezone information uses
-            the 'DATETIME' BigQuery type (example: Global Pi Day Celebration
-            March 14, 2017 at 1:59pm). A `~datetime.datetime` parameter with
-            timezone information uses the 'TIMESTAMP' BigQuery type (example:
-            a wedding on April 29, 2011 at 11am, British Summer Time).
-
-            For more information about BigQuery data types, see:
-            https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
-
-            ``STRUCT``/``RECORD`` and ``REPEATED`` query parameters are not
-            yet supported. See:
-            https://github.com/GoogleCloudPlatform/google-cloud-python/issues/3524
+        Note:
+            - Parameter placeholders use ``pyformat`` syntax: ``%s`` for
+              positional parameters (sequence ``parameters``) and ``%(name)s``
+              for named parameters (mapping ``parameters``). ``%%`` is unescaped
+              to ``%`` even when ``parameters`` is :data:`None` or empty.
+            - ``str`` values map to BigQuery ``STRING`` and ``bytes`` values
+              map to ``BYTES``. Naive :class:`~datetime.datetime` values map to
+              ``DATETIME``, while timezone-aware :class:`~datetime.datetime`
+              values map to ``TIMESTAMP``.
+            - ``ARRAY`` / ``REPEATED`` parameters are supported directly via
+              non-string sequences (such as ``list`` or ``tuple``).
+            - Extended inline type annotations (``%(name:type)s`` for named
+              parameters or ``%(:type)s`` for positional parameters) can be
+              used to specify BigQuery types explicitly.
+            - ``None`` and empty sequences (``[]``) raise
+              :class:`~google.cloud.bigquery.dbapi.ProgrammingError` unless an
+              explicit inline ``:type`` annotation is provided. Mapping
+              (``dict``) values for ``STRUCT`` / ``RECORD`` parameters raise
+              :class:`NotImplementedError` unless an explicit inline
+              ``:struct<...>`` annotation is provided (for example,
+              ``%(p:struct<x float64, y float64>)s``).
+            - For more information about BigQuery data types, see
+              https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types.
 
         Args:
             operation (str): A Google BigQuery query string.
@@ -191,6 +213,19 @@ class Cursor(object):
 
             job_config (google.cloud.bigquery.job.QueryJobConfig):
                 (Optional) Extra configuration options for the query job.
+
+        Raises:
+            google.cloud.bigquery.dbapi.DatabaseError:
+                If the BigQuery API raises a
+                :class:`~google.cloud.exceptions.GoogleCloudError` during query
+                execution.
+            google.cloud.bigquery.dbapi.ProgrammingError:
+                If the cursor is closed, parameter placeholders do not match
+                ``parameters``, or a parameter type (such as ``None`` or an
+                empty sequence) cannot be inferred without an inline type hint.
+            NotImplementedError:
+                If a mapping (``dict``) parameter is passed without an explicit
+                inline ``:struct<...>`` type annotation.
         """
         formatted_operation, parameter_types = _format_operation(operation, parameters)
         self._execute(
@@ -244,10 +279,14 @@ class Cursor(object):
     def executemany(self, operation, seq_of_parameters):
         """Prepare and execute a database operation multiple times.
 
+        Executes each parameter set sequentially as a separate BigQuery query
+        (not a single batch insert) and sums the resulting ``rowcount`` values.
+        This method does not accept ``job_config``.
+
         Args:
             operation (str): A Google BigQuery query string.
 
-            seq_of_parameters (Union[Sequence[Mapping[str, Any], Sequence[Any]]]):
+            seq_of_parameters (Sequence[Union[Mapping[str, Any], Sequence[Any]]]):
                 Sequence of many sets of parameter values.
         """
         if seq_of_parameters:
@@ -304,7 +343,7 @@ class Cursor(object):
             bqstorage_client(\
                 google.cloud.bigquery_storage_v1.BigQueryReadClient \
             ):
-                A client tha know how to talk to the BigQuery Storage API.
+                A client that knows how to talk to the BigQuery Storage API.
 
         Returns:
             Iterable[Mapping]:
@@ -347,16 +386,26 @@ class Cursor(object):
     def fetchone(self):
         """Fetch a single row from the results of the last ``execute*()`` call.
 
-        .. note::
-            If a dry run query was executed, no rows are returned.
+        Note:
+            - If a dry run query was executed, no rows are returned.
+            - Unlike :meth:`execute`, API errors during result fetching are not
+              wrapped in :class:`~google.cloud.bigquery.dbapi.DatabaseError`.
+              For example, if ``prefer_bqstorage_client=True`` and the caller
+              lacks ``bigquery.readsessions.create`` permission, this method
+              raises :class:`~google.api_core.exceptions.PermissionDenied`
+              directly.
 
         Returns:
-            Tuple:
-                A tuple representing a row or ``None`` if no more data is
+            Optional[google.cloud.bigquery.table.Row]:
+                A :class:`~google.cloud.bigquery.table.Row` representing a row
+                (not a plain ``tuple``), or ``None`` if no more data is
                 available.
 
         Raises:
             google.cloud.bigquery.dbapi.InterfaceError: if called before ``execute()``.
+            google.api_core.exceptions.PermissionDenied:
+                If the BigQuery Storage Read API is used and the caller lacks
+                ``bigquery.readsessions.create`` permission.
         """
         self._try_fetch()
         try:
@@ -367,13 +416,16 @@ class Cursor(object):
     def fetchmany(self, size=None):
         """Fetch multiple results from the last ``execute*()`` call.
 
-        .. note::
-            If a dry run query was executed, no rows are returned.
-
-        .. note::
-            The size parameter is not used for the request/response size.
-            Set the ``arraysize`` attribute before calling ``execute()`` to
-            set the batch size.
+        Note:
+            - If a dry run query was executed, no rows are returned.
+            - The ``size`` parameter is not used for the request/response page
+              size. Set the ``arraysize`` attribute before calling
+              ``execute()`` to set the page size.
+            - Unlike :meth:`execute`, API errors during result fetching are not
+              wrapped in :class:`~google.cloud.bigquery.dbapi.DatabaseError`
+              (for example, missing ``bigquery.readsessions.create`` permission
+              raises :class:`~google.api_core.exceptions.PermissionDenied`
+              directly).
 
         Args:
             size (int):
@@ -382,10 +434,15 @@ class Cursor(object):
                 defaults to ``1``.
 
         Returns:
-            List[Tuple]: A list of rows.
+            List[google.cloud.bigquery.table.Row]:
+                A list of :class:`~google.cloud.bigquery.table.Row` objects
+                (not plain ``tuple`` instances).
 
         Raises:
             google.cloud.bigquery.dbapi.InterfaceError: if called before ``execute()``.
+            google.api_core.exceptions.PermissionDenied:
+                If the BigQuery Storage Read API is used and the caller lacks
+                ``bigquery.readsessions.create`` permission.
         """
         if size is None:
             # Since self.arraysize can be None (a deviation from PEP 249),
@@ -406,14 +463,24 @@ class Cursor(object):
     def fetchall(self):
         """Fetch all remaining results from the last ``execute*()`` call.
 
-        .. note::
-            If a dry run query was executed, no rows are returned.
+        Note:
+            - If a dry run query was executed, no rows are returned.
+            - Unlike :meth:`execute`, API errors during result fetching are not
+              wrapped in :class:`~google.cloud.bigquery.dbapi.DatabaseError`
+              (for example, missing ``bigquery.readsessions.create`` permission
+              raises :class:`~google.api_core.exceptions.PermissionDenied`
+              directly).
 
         Returns:
-            List[Tuple]: A list of all the rows in the results.
+            List[google.cloud.bigquery.table.Row]:
+                A list of all remaining :class:`~google.cloud.bigquery.table.Row`
+                objects in the results (not plain ``tuple`` instances).
 
         Raises:
             google.cloud.bigquery.dbapi.InterfaceError: if called before ``execute()``.
+            google.api_core.exceptions.PermissionDenied:
+                If the BigQuery Storage Read API is used and the caller lacks
+                ``bigquery.readsessions.create`` permission.
         """
         self._try_fetch()
         return list(self._query_data)

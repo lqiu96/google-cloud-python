@@ -17,9 +17,10 @@ or to either of the alternative ``classmethod`` factories:
    client = bigquery.Client(project='PROJECT_ID')
 
 
-Project ACLs
-^^^^^^^^^^^^
+Project IAM Permissions
+^^^^^^^^^^^^^^^^^^^^^^^
 
-Each project has an access control list granting reader / writer / owner
-permission to one or more entities.  This list cannot be queried or set
-via the API; it must be managed using the Google Developer Console.
+Each project has IAM access controls granting roles to principals. Project-level
+IAM policies cannot be managed through the BigQuery API. Manage them using the
+Google Cloud console or the Resource Manager API. See `Access control with IAM
+<https://docs.cloud.google.com/bigquery/docs/access-control>`_ for details.

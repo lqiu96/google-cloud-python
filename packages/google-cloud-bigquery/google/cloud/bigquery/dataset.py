@@ -84,7 +84,7 @@ class DatasetReference(object):
     """DatasetReferences are pointers to datasets.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#datasetreference
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets#datasetreference
 
     Args:
         project (str): The ID of the project
@@ -220,7 +220,7 @@ class AccessEntry(object):
     or ``dataset`` are set, a ``role`` is also required. ``role`` is omitted for ``view``,
     ``routine``, ``dataset``, because they are always read-only.
 
-    See https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets.
+    See https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets.
 
     Args:
         role:
@@ -254,21 +254,23 @@ class AccessEntry(object):
                 }
 
             If the ``entity_type`` is 'dataset', the ``entity_id`` is a ``dict`` that includes
-            a 'dataset' field with a ``dict`` representing the dataset and a 'target_types'
-            field with a ``str`` value of the dataset's resource type::
+            a 'dataset' field with a ``dict`` representing the dataset and a 'targetTypes'
+            field with a ``list`` of ``str`` values for the dataset's resource types::
 
                 {
                     'dataset': {
                         'projectId': string,
                         'datasetId': string,
                     },
-                    'target_types: 'VIEWS'
+                    'targetTypes': ['VIEWS'],
                 }
 
     Raises:
         ValueError:
-            If a ``view``, ``routine``, or ``dataset`` has ``role`` set, or a non ``view``,
-            non ``routine``, and non ``dataset`` **does not** have a ``role`` set.
+            If the ``dataset``, ``routine``, or ``view`` property setter is
+            invoked (for example via keyword arguments) while ``role`` is not
+            :data:`None`. Positional arguments are not validated against
+            ``role`` during initialization.
 
     Examples:
         >>> entry = AccessEntry('OWNER', 'userByEmail', 'user@example.com')
@@ -567,7 +569,7 @@ class Dataset(object):
     """Datasets are containers for tables.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource-dataset
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource-dataset
 
     Args:
         dataset_ref (Union[google.cloud.bigquery.dataset.DatasetReference, str]):
@@ -576,8 +578,17 @@ class Dataset(object):
             ``.``.
 
     Note:
-        Fields marked as "Output Only" are populated by the server and will only be
-        available after calling :meth:`google.cloud.bigquery.client.Client.get_dataset`.
+        - Fields marked as "Output Only" are populated by the server and will
+          only be available after calling
+          :meth:`google.cloud.bigquery.client.Client.get_dataset`.
+        - Modifying properties on a ``Dataset`` mutates the object locally in
+          memory only. To persist changes, call
+          :meth:`~google.cloud.bigquery.client.Client.update_dataset` and list
+          the modified attribute names in ``fields``.
+        - To remove an existing label over HTTP PATCH, assign :data:`None` to
+          that key in :attr:`labels` (for example,
+          ``dataset.labels = {"old_key": None}``) and include ``"labels"`` in
+          ``fields``.
     """
 
     _PROPERTY_TO_API_FIELD = {
@@ -632,9 +643,9 @@ class Dataset(object):
         ``'ROUNDING_MODE_UNSPECIFIED'``.
 
         See `default rounding mode
-        <https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#Dataset.FIELDS.default_rounding_mode>`_
+        <https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets#Dataset.FIELDS.default_rounding_mode>`_
         in REST API docs and `updating the default rounding model
-        <https://cloud.google.com/bigquery/docs/updating-datasets#update_rounding_mode>`_
+        <https://docs.cloud.google.com/bigquery/docs/updating-datasets#update_rounding_mode>`_
         guide.
 
         Raises:
@@ -759,7 +770,7 @@ class Dataset(object):
         partitioned tables in the dataset, in milliseconds.
 
         Once this property is set, all newly-created partitioned tables in
-        the dataset will have an ``time_paritioning.expiration_ms`` property
+        the dataset will have a ``time_partitioning.expiration_ms`` property
         set to this value, and changing the value will only affect new
         tables, not existing ones. The storage in a partition will have an
         expiration time of its partition time plus this value.
@@ -851,8 +862,11 @@ class Dataset(object):
 
         This method always returns a dict. To change a dataset's labels,
         modify the dict, then call
-        :meth:`google.cloud.bigquery.client.Client.update_dataset`. To delete
-        a label, set its value to :data:`None` before updating.
+        :meth:`google.cloud.bigquery.client.Client.update_dataset` with
+        ``"labels"`` in ``fields``. Deleting a key locally or assigning an
+        empty dict does not remove existing server-side labels over HTTP PATCH.
+        To delete a label, set its value to :data:`None` (for example,
+        ``dataset.labels = {"old_key": None}``) before updating.
 
         Raises:
             ValueError: for invalid value types.
@@ -896,7 +910,7 @@ class Dataset(object):
         if using default encryption.
 
         See `protecting data with Cloud KMS keys
-        <https://cloud.google.com/bigquery/docs/customer-managed-encryption>`_
+        <https://docs.cloud.google.com/bigquery/docs/customer-managed-encryption>`_
         in the BigQuery documentation.
         """
         prop = self._properties.get("defaultEncryptionConfiguration")
@@ -941,9 +955,9 @@ class Dataset(object):
         billing model again.
 
         See `storage billing model
-        <https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#Dataset.FIELDS.storage_billing_model>`_
+        <https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets#Dataset.FIELDS.storage_billing_model>`_
         in REST API docs and `updating the storage billing model
-        <https://cloud.google.com/bigquery/docs/updating-datasets#update_storage_billing_models>`_
+        <https://docs.cloud.google.com/bigquery/docs/updating-datasets#update_storage_billing_models>`_
         guide.
 
         Raises:
@@ -986,6 +1000,15 @@ class Dataset(object):
 
     @property
     def access_policy_version(self):
+        """Optional[int]: The access policy schema version for this dataset.
+
+        Valid values are ``1`` and ``3``. Version ``3`` is required to use
+        conditional access entries. See
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets#Dataset.FIELDS.access_policy_version.
+
+        Raises:
+            ValueError: If ``value`` is not an ``int`` or :data:`None`.
+        """
         return self._properties.get("accessPolicyVersion")
 
     @access_policy_version.setter
@@ -1023,7 +1046,7 @@ class Dataset(object):
         """Factory: construct a dataset given its API representation
 
         Args:
-            resource (Dict[str: object]):
+            resource (Dict[str, object]):
                 Dataset resource representation returned from the API
 
         Returns:
@@ -1069,13 +1092,22 @@ class Dataset(object):
 class DatasetListItem(object):
     """A read-only dataset resource from a list operation.
 
-    For performance reasons, the BigQuery API only includes some of the
+    For performance reasons, the BigQuery API only includes a subset of
     dataset properties when listing datasets. Notably,
-    :attr:`~google.cloud.bigquery.dataset.Dataset.access_entries` is missing.
+    :attr:`~google.cloud.bigquery.dataset.Dataset.access_entries`,
+    :attr:`~google.cloud.bigquery.dataset.Dataset.description`, and
+    :attr:`~google.cloud.bigquery.dataset.Dataset.default_table_expiration_ms`
+    are omitted.
+
+    ``DatasetListItem`` is lightweight and read-only. It cannot be passed to
+    :meth:`~google.cloud.bigquery.client.Client.update_dataset`. Call
+    :meth:`~google.cloud.bigquery.client.Client.get_dataset` to retrieve the
+    full :class:`~google.cloud.bigquery.dataset.Dataset` metadata or to make
+    updates.
 
     For a full list of the properties that the BigQuery API returns, see the
     `REST documentation for datasets.list
-    <https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list>`_.
+    <https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list>`_.
 
 
     Args:
@@ -1154,7 +1186,7 @@ class Condition(object):
     or BigQuery row/column access policies.
 
     See:
-        https://cloud.google.com/iam/docs/reference/rest/Shared.Types/Expr
+        https://docs.cloud.google.com/iam/docs/reference/rest/Shared.Types/Expr
         https://github.com/google/cel-spec
 
     Args:
@@ -1246,7 +1278,7 @@ class Condition(object):
         """A tuple key that uniquely describes this field.
         Used to compute this instance's hashcode and evaluate equality.
         Returns:
-            Tuple: The contents of this :class:`~google.cloud.bigquery.dataset.AccessEntry`.
+            Tuple: The contents of this :class:`~google.cloud.bigquery.dataset.Condition`.
         """
 
         properties = self._properties.copy()

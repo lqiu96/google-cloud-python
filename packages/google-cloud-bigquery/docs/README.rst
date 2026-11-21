@@ -17,9 +17,9 @@ processing power of Google's infrastructure.
    :target: https://pypi.org/project/google-cloud-bigquery/
 .. |versions| image:: https://img.shields.io/pypi/pyversions/google-cloud-bigquery.svg
    :target: https://pypi.org/project/google-cloud-bigquery/
-.. _BigQuery: https://cloud.google.com/bigquery/what-is-bigquery
-.. _Client Library Documentation: https://cloud.google.com/python/docs/reference/bigquery/latest/summary_overview
-.. _Product Documentation: https://cloud.google.com/bigquery/docs/reference/v2/
+.. _BigQuery: https://docs.cloud.google.com/bigquery/docs/introduction
+.. _Client Library Documentation: https://docs.cloud.google.com/python/docs/reference/bigquery/latest/summary_overview
+.. _Product Documentation: https://docs.cloud.google.com/bigquery/docs/reference/rest
 
 
 Related Libraries
@@ -52,9 +52,9 @@ In order to use this library, you first need to go through the following steps:
 4. `Setup Authentication.`_
 
 .. _Select or create a Cloud Platform project.: https://console.cloud.google.com/project
-.. _Enable billing for your project.: https://cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project
-.. _Enable the Google Cloud BigQuery API.:  https://cloud.google.com/bigquery
-.. _Setup Authentication.: https://googleapis.dev/python/google-api-core/latest/auth.html
+.. _Enable billing for your project.: https://docs.cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project
+.. _Enable the Google Cloud BigQuery API.:  https://docs.cloud.google.com/bigquery/docs
+.. _Setup Authentication.: https://docs.cloud.google.com/docs/authentication/client-libraries
 
 Installation
 ~~~~~~~~~~~~
@@ -151,11 +151,11 @@ example of this can be found here:
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
     tracer_provider = TracerProvider()
-    tracer_provider = BatchSpanProcessor(CloudTraceSpanExporter())
-    trace.set_tracer_provider(TracerProvider())
+    tracer_provider.add_span_processor(BatchSpanProcessor(CloudTraceSpanExporter()))
+    trace.set_tracer_provider(tracer_provider)
 
 In this example all tracing data will be published to the Google
 `Cloud Trace`_ console. For more information on OpenTelemetry, please consult the `OpenTelemetry documentation`_.
 
 .. _OpenTelemetry documentation: https://opentelemetry-python.readthedocs.io
-.. _Cloud Trace: https://cloud.google.com/trace
+.. _Cloud Trace: https://docs.cloud.google.com/trace/docs

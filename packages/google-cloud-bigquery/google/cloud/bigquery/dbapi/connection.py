@@ -38,6 +38,20 @@ class Connection(object):
             Prefer the BigQuery Storage client over the REST client. If Storage
             client isn't available, fall back to the REST client. Defaults to
             ``True``.
+
+    Note:
+        - ``Connection`` instances may be shared across threads
+          (``threadsafety = 2``), while :class:`~google.cloud.bigquery.dbapi.Cursor`
+          instances are not thread-safe.
+        - ``Connection`` does not implement the context manager protocol
+          (``with connect():`` raises :class:`TypeError`). Call :meth:`close`
+          explicitly when finished.
+        - Multi-statement client transactions are not supported. :meth:`commit`
+          is a no-op and ``rollback()`` is not implemented.
+        - When ``prefer_bqstorage_client=True``, cursor fetch calls require the
+          ``bigquery.readsessions.create`` IAM permission and raise
+          :class:`~google.api_core.exceptions.PermissionDenied` if missing.
+          Pass ``prefer_bqstorage_client=False`` to force REST reads.
     """
 
     def __init__(
@@ -100,7 +114,15 @@ class Connection(object):
                 channel.close()
 
     def commit(self):
-        """No-op, but for consistency raise an error if connection is closed."""
+        """No-op, but for consistency raise an error if connection is closed.
+
+        BigQuery DB-API does not support client-managed transactions, and
+        ``Connection`` does not implement ``rollback()``.
+
+        Raises:
+            google.cloud.bigquery.dbapi.ProgrammingError:
+                If the connection is closed.
+        """
 
     def cursor(self):
         """Return a new cursor object.
@@ -133,5 +155,11 @@ def connect(client=None, bqstorage_client=None, prefer_bqstorage_client=True):
 
     Returns:
         google.cloud.bigquery.dbapi.Connection: A new DB-API connection to BigQuery.
+
+    Note:
+        The returned :class:`Connection` does not support the ``with`` context
+        manager protocol (call :meth:`~Connection.close` explicitly), and
+        client transactions are not supported (:meth:`~Connection.commit` is a
+        no-op and ``rollback()`` is not implemented).
     """
     return Connection(client, bqstorage_client, prefer_bqstorage_client)

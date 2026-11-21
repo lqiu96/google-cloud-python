@@ -97,7 +97,7 @@ install the BigQuery Python client library with :mod:`pandas` and
 
 .. code-block:: bash
 
-   pip install --upgrade google-cloud-bigquery[pandas,pyarrow]
+   pip install --upgrade 'google-cloud-bigquery[pandas]'
 
 The following example demonstrates how to create a :class:`pandas.DataFrame`
 and load it into a new table:

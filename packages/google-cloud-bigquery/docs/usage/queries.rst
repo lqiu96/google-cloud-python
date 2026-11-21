@@ -28,7 +28,7 @@ Writing query results to a destination table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 See BigQuery documentation for more information on
-`writing query results <https://cloud.google.com/bigquery/docs/writing-results>`_.
+`writing query results <https://docs.cloud.google.com/bigquery/docs/writing-results>`_.
 
 .. literalinclude:: ../samples/client_query_destination_table.py
    :language: python
@@ -41,7 +41,7 @@ Run a query using a named query parameter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 See BigQuery documentation for more information on
-`parameterized queries <https://cloud.google.com/bigquery/docs/parameterized-queries>`_.
+`parameterized queries <https://docs.cloud.google.com/bigquery/docs/parameterized-queries>`_.
 
 .. literalinclude:: ../samples/client_query_w_named_params.py
    :language: python
@@ -54,7 +54,7 @@ Run a script
 
 See BigQuery documentation for more information on `scripting in BigQuery
 standard SQL
-<https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting>`_.
+<https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language>`_.
 
 .. literalinclude:: ../samples/query_script.py
    :language: python

@@ -27,7 +27,7 @@ from google.cloud.bigquery.standard_sql import StandardSqlTableType
 class RoutineType:
     """The fine-grained type of the routine.
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#routinetype
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines#routinetype
 
     .. versionadded:: 2.22.0
     """
@@ -42,12 +42,12 @@ class Routine(object):
     """Resource representing a user-defined routine.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/routines
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines
 
     Args:
         routine_ref (Union[str, google.cloud.bigquery.routine.RoutineReference]):
             A pointer to a routine. If ``routine_ref`` is a string, it must
-            included a project ID, dataset ID, and routine ID, each separated
+            include a project ID, dataset ID, and routine ID, each separated
             by ``.``.
         ``**kwargs`` (Dict):
             Initial property values.
@@ -123,7 +123,7 @@ class Routine(object):
         """str: The fine-grained type of the routine.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#RoutineType
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines#RoutineType
         """
         return self._properties.get(self._PROPERTY_TO_API_FIELD["type_"])
 
@@ -203,7 +203,7 @@ class Routine(object):
         time.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#Routine.FIELDS.return_type
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines#Routine.FIELDS.return_type
         """
         resource = self._properties.get(self._PROPERTY_TO_API_FIELD["return_type"])
         if not resource:
@@ -244,7 +244,7 @@ class Routine(object):
         """List[str]: The path of the imported JavaScript libraries.
 
         The :attr:`~google.cloud.bigquery.routine.Routine.language` must
-        equal ``JAVACRIPT``.
+        equal ``JAVASCRIPT``.
 
         Examples:
             Set the ``imported_libraries`` to a list of Google Cloud Storage
@@ -419,7 +419,7 @@ class RoutineArgument(object):
     """Input/output argument of a function or a stored procedure.
 
     See:
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#argument
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines#argument
 
     Args:
         ``**kwargs`` (Dict):
@@ -459,7 +459,7 @@ class RoutineArgument(object):
         ``ANY_TYPE``.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#Argument.FIELDS.argument_kind
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines#Argument.FIELDS.argument_kind
         """
         return self._properties.get(self._PROPERTY_TO_API_FIELD["kind"])
 
@@ -482,7 +482,7 @@ class RoutineArgument(object):
         of a variable, e.g., a function argument.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#Argument.FIELDS.data_type
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines#Argument.FIELDS.data_type
         """
         resource = self._properties.get(self._PROPERTY_TO_API_FIELD["data_type"])
         if not resource:
@@ -541,7 +541,7 @@ class RoutineReference(object):
     """A pointer to a routine.
 
     See:
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#routinereference
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines#routinereference
     """
 
     def __init__(self):
@@ -596,7 +596,7 @@ class RoutineReference(object):
         Args:
             routine_id (str):
                 A routine ID in standard SQL format. If ``default_project``
-                is not specified, this must included a project ID, dataset
+                is not specified, this must include a project ID, dataset
                 ID, and routine ID, each separated by ``.``.
             default_project (Optional[str]):
                 The project ID to use when ``routine_id`` does not
@@ -779,11 +779,11 @@ class ExternalRuntimeOptions(object):
             instance. Format: {number}{unit} where unit is one of "M", "G", "Mi"
             and "Gi" (e.g. 1G, 512Mi). If not specified, the default value is
             512Mi. For more information, see `Configure container limits for
-            Python UDFs <https://cloud.google.com/bigquery/docs/user-defined-functions-python#configure-container-limits>`_
+            Python UDFs <https://docs.cloud.google.com/bigquery/docs/user-defined-functions-python#configure-container-limits>`_
         container_cpu (int):
             Optional. Amount of CPU provisioned for a Python UDF container
             instance. For more information, see `Configure container limits
-            for Python UDFs <https://cloud.google.com/bigquery/docs/user-defined-functions-python#configure-container-limits>`_
+            for Python UDFs <https://docs.cloud.google.com/bigquery/docs/user-defined-functions-python#configure-container-limits>`_
         runtime_connection (str):
             Optional. Fully qualified name of the connection whose service account
             will be used to execute the code in the container. Format:

@@ -161,7 +161,7 @@ The types of several `Model` properties have been changed.
 - `Model.feature_columns` now returns a sequence of `google.cloud.bigquery.standard_sql.StandardSqlField`.
 - `Model.label_columns` now returns a sequence of `google.cloud.bigquery.standard_sql.StandardSqlField`.
 - `Model.model_type` now returns a string.
-- `Model.training_runs` now returns a sequence of dictionaries, as recieved from the [BigQuery REST API](https://cloud.google.com/bigquery/docs/reference/rest/v2/models#Model.FIELDS.training_runs).
+- `Model.training_runs` now returns a sequence of dictionaries, as received from the [BigQuery REST API](https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/models#Model.FIELDS.training_runs).
 
 <a name="legacy-protobuf-types"></a>
 ## Legacy Protocol Buffers Types
@@ -204,7 +204,7 @@ will not be receiving any more feature updates or bug fixes. You are thus
 encouraged to upgrade to the 2.x series.
 
 If you experience issues or have questions, please file an
-[issue](https://github.com/googleapis/python-bigquery/issues).
+[issue](https://github.com/googleapis/google-cloud-python/issues).
 
 
 ## Supported Python Versions

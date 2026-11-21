@@ -1,8 +1,9 @@
 IPython Magics for BigQuery
 ===========================
 
-To use these magics, you must first register them. Run the ``%load_ext`` magic
-in a Jupyter notebook cell.
+IPython magics have moved to the standalone ``bigquery-magics`` package.
+Install ``bigquery-magics`` and run the ``%load_ext`` magic in a Jupyter
+notebook cell.
 
 .. code::
 
@@ -32,4 +33,4 @@ BigQuery Magics Reference
 
 -  `BigQuery Magics Documentation`_
 
-.. _BigQuery Magics Documentation: https://googleapis.dev/python/bigquery-magics/latest
+.. _BigQuery Magics Documentation: https://googleapis.dev/python/bigquery-magics/latest/
