@@ -94,7 +94,11 @@ def entity_from_protobuf(pb):
     .. note::
 
         Timestamp properties are converted to timezone-aware UTC
-        ``DatetimeWithNanoseconds`` objects. For non-empty array properties,
+        ``proto.datetime_helpers.DatetimeWithNanoseconds`` objects (not
+        ``google.api_core.datetime_helpers.DatetimeWithNanoseconds``).
+        Ordering comparisons against a naive ``datetime`` raise
+        :class:`TypeError`, while equality (``==``) silently returns
+        ``False``. For non-empty array properties,
         all elements must share the same ``exclude_from_indexes`` flag.
         Empty list properties do not retain their ``exclude_from_indexes``
         flag after round-tripping through protobuf.
@@ -219,13 +223,15 @@ def entity_to_protobuf(entity):
     .. note::
 
         ``entity.exclude_from_indexes`` matches top-level property names only
-        (dotted paths have no effect). To exclude a single field inside a
-        nested object while indexing sibling fields, store an embedded
-        :class:`~google.cloud.datastore.entity.Entity` with its own
-        ``exclude_from_indexes`` instead of a plain :class:`dict`. For list
-        properties, ``exclude_from_indexes`` is set on each element rather
-        than on the outer ``ArrayValue``. Indexed :class:`str` (UTF-8) and
-        :class:`bytes` values are limited to 1,500 bytes by Datastore.
+        (dotted paths have no effect). Adding a top-level plain :class:`dict`
+        sets ``exclude_from_indexes`` on the outer embedded entity value only,
+        so nested strings or bytes over 1,500 bytes still fail unless stored
+        in an embedded :class:`~google.cloud.datastore.entity.Entity` with its
+        own ``exclude_from_indexes`` (also required when excluding individual
+        nested fields while indexing siblings). For list properties,
+        ``exclude_from_indexes`` is set on each element rather than on the
+        outer ``ArrayValue``. Indexed :class:`str` (UTF-8) and :class:`bytes`
+        values are limited to 1,500 bytes by Datastore.
 
     :type entity: :class:`google.cloud.datastore.entity.Entity`
     :param entity: The entity to be turned into a protobuf.

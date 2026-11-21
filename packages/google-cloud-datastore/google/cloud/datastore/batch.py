@@ -57,7 +57,8 @@ class Batch(object):
           :class:`~google.cloud.datastore.key.Key` and does not accept
           :class:`~google.cloud.datastore.entity.Entity` instances (unlike
           :meth:`~google.cloud.datastore.client.Client.delete`).
-        - Datastore enforces a maximum of 500 entity mutations per commit.
+        - Datastore enforces a maximum API request size of 10 MiB per commit
+          (see https://docs.cloud.google.com/datastore/docs/concepts/limits).
         - ``commit`` RPCs have no default retry policy configured in gRPC or
           HTTP transport. See
           https://docs.cloud.google.com/datastore/docs/concepts/errors.
@@ -384,7 +385,9 @@ class Batch(object):
         manager.
 
         For :class:`Batch`, this sends a ``NON_TRANSACTIONAL`` commit RPC that
-        is not atomic across entities and supports at most 500 mutations. See
+        is not atomic across entities and is subject to the 10 MiB maximum API
+        request size. See
+        https://docs.cloud.google.com/datastore/docs/concepts/limits and
         https://docs.cloud.google.com/datastore/docs/concepts/errors.
 
         :type retry: :class:`google.api_core.retry.Retry`

@@ -495,9 +495,13 @@ class Query(object):
 
             Projection queries return partial
             :class:`~google.cloud.datastore.entity.Entity` instances containing
-            only the projected properties and ``key``. Never pass them to
-            :meth:`~google.cloud.datastore.client.Client.put` or unprojected
-            properties will be overwritten and deleted on the server.
+            only the projected properties and ``key``. Passing an unmodified
+            projection entity to
+            :meth:`~google.cloud.datastore.client.Client.put` fails with
+            :class:`~google.api_core.exceptions.InvalidArgument` (projection
+            meaning 18 is rejected on write). Modifying projected fields or
+            copying them into a new ``Entity`` and calling ``put()`` succeeds
+            and deletes unprojected properties on the server.
 
         :rtype: sequence of string
         :returns: Names of fields in query results.
@@ -511,9 +515,13 @@ class Query(object):
         .. warning::
 
             Projection queries return partial
-            :class:`~google.cloud.datastore.entity.Entity` objects. Do not pass
-            them to :meth:`~google.cloud.datastore.client.Client.put` because
-            unprojected properties will be deleted on the server.
+            :class:`~google.cloud.datastore.entity.Entity` objects. Unmodified
+            projection entities fail
+            :meth:`~google.cloud.datastore.client.Client.put` with
+            :class:`~google.api_core.exceptions.InvalidArgument`, while
+            modifying projected fields or copying into a new ``Entity`` and
+            calling ``put()`` overwrites the entity and deletes unprojected
+            properties on the server.
 
         :type projection: str or sequence of strings
         :param projection: Each value is a string giving the name of a
@@ -612,10 +620,12 @@ class Query(object):
         .. note::
 
             - ``fetch()`` is lazy (no RPC is sent until iterated) and returns a
-              single-pass :class:`~collections.abc.Iterable` (call
-              ``iter(query_iter)`` before ``next()``). Inside a
-              ``with client.transaction():`` block, exhaust the iterator before
-              exiting so the query executes within the transaction.
+              single-pass :class:`~collections.abc.Iterator`
+              (``next(query_iter)`` works directly, and calling ``iter()`` a
+              second time after iteration starts raises :class:`ValueError`).
+              Inside a ``with client.transaction():`` block, exhaust the
+              iterator before exiting so the query executes within the
+              transaction.
             - ``start_cursor`` and ``end_cursor`` are URL-safe base64-encoded
               :class:`bytes` (or ASCII :class:`str`) matching
               ``query_iter.next_page_token`` (not raw protobuf bytes).
@@ -624,17 +634,22 @@ class Query(object):
               For cursor pagination with ``limit=N``, exhaust the iterator
               (for example, ``entities = list(query_iter)``) and pass
               ``query_iter.next_page_token`` as ``start_cursor`` on the next
-              call while ``next_page_token`` is not ``None`` (it is populated
-              when ``more_results`` indicates more results after the limit and
-              set to ``None`` on ``NO_MORE_RESULTS``).
+              call while ``next_page_token`` is not ``None``. The token is
+              cleared to ``None`` when the server response reports
+              ``NO_MORE_RESULTS`` (note that ``next_page_token`` may remain
+              populated when ``limit`` matches the exact remaining entity count
+              until a subsequent empty fetch returns ``NO_MORE_RESULTS``).
             - ``offset`` is ignored when ``start_cursor`` is provided. Large
               offsets loop internally in chunks of 1,000 skipped results and
               incur billed small/index reads, so prefer cursors for pagination.
             - Queries using :attr:`projection` or :meth:`keys_only` yield
               partial or empty :class:`~google.cloud.datastore.entity.Entity`
               shells (not bare :class:`~google.cloud.datastore.key.Key`
-              objects). Do not pass them to ``client.put()`` or unprojected
-              properties will be overwritten.
+              objects). Unmodified projection entities fail ``client.put()``
+              with :class:`~google.api_core.exceptions.InvalidArgument`, while
+              ``keys_only()`` shells (or modified or copied projection
+              entities) overwrite the entity and delete unprojected or all
+              stored properties.
             - When ``explain_options=ExplainOptions(analyze=True)`` is set on
               the query, exhaust the returned iterator before reading
               :attr:`Iterator.explain_metrics`.
@@ -738,12 +753,15 @@ class Query(object):
 class Iterator(page_iterator.Iterator):
     """Represent the state of a given execution of a Query.
 
-    This class is a single-pass :class:`~collections.abc.Iterable` (call
-    ``iter(query_iter)`` before ``next()``). After exhausting the iterator,
-    ``next_page_token`` holds the URL-safe base64 cursor to resume pagination
-    (or ``None`` when ``more_results`` is ``NO_MORE_RESULTS``). Note that
-    ``pages`` yields server-sized RPC batches rather than ``limit``-sized
-    pages.
+    This class is a single-pass :class:`~collections.abc.Iterator`
+    (``next(query_iter)`` works directly, and calling ``iter()`` a second time
+    after iteration starts raises :class:`ValueError`). After exhausting the
+    iterator, ``next_page_token`` holds the URL-safe base64 cursor to resume
+    pagination, or ``None`` once the server response reports
+    ``NO_MORE_RESULTS`` (it may remain populated when ``limit`` matches the
+    exact remaining count until a subsequent empty fetch returns
+    ``NO_MORE_RESULTS``). Note that ``pages`` yields server-sized RPC batches
+    rather than ``limit``-sized pages.
 
     :type query: :class:`~google.cloud.datastore.query.Query`
     :param query: Query object holding permanent configuration (i.e.

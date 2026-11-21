@@ -139,8 +139,7 @@ class ExplainMetrics:
     def execution_stats(self) -> ExecutionStats:
         """Execution phase information about the query.
 
-        Available only when ``explain_options.analyze=True`` (returned via
-        :class:`_ExplainAnalyzeMetrics`).
+        Available only when ``explain_options.analyze=True``.
 
         :rtype: :class:`ExecutionStats`
         :returns: Execution phase statistics for the query.

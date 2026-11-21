@@ -109,11 +109,13 @@ class Transaction(Batch):
           :class:`~google.cloud.datastore.batch.Batch`) requires a complete
           :class:`~google.cloud.datastore.key.Key` and does not accept
           :class:`~google.cloud.datastore.entity.Entity` instances.
-        - Datastore enforces a maximum of 500 entity mutations per commit.
-          ``begin_transaction``, ``commit``, and ``rollback`` have no default
-          retry policy configured in gRPC or HTTP transport. See
-          https://docs.cloud.google.com/datastore/docs/concepts/transactions
-          and https://docs.cloud.google.com/datastore/docs/concepts/errors.
+        - Datastore enforces a maximum transaction and API request size of
+          10 MiB per commit. ``begin_transaction``, ``commit``, and
+          ``rollback`` have no default retry policy configured in gRPC or HTTP
+          transport. See
+          https://docs.cloud.google.com/datastore/docs/concepts/transactions,
+          https://docs.cloud.google.com/datastore/docs/concepts/limits, and
+          https://docs.cloud.google.com/datastore/docs/concepts/errors.
 
     For example, the following snippet of code will put the two ``save``
     operations (either ``insert`` or ``upsert``) into the same
@@ -220,7 +222,9 @@ class Transaction(Batch):
     :type read_only: bool
     :param read_only: indicates the transaction is read only. Calling
                       :meth:`put` on a read-only transaction raises
-                      :class:`RuntimeError`.
+                      :class:`RuntimeError` client-side, while mutations such
+                      as :meth:`delete` are rejected by Datastore on commit
+                      with :class:`~google.api_core.exceptions.InvalidArgument`.
 
     :type read_time: datetime
     :param read_time: (Optional) Time at which the transaction reads entities.
@@ -231,12 +235,18 @@ class Transaction(Batch):
                         deferred until the first ``get`` or ``get_multi`` RPC
                         (via ``new_transaction`` read options) or until
                         :meth:`commit` if mutations are queued without reads.
-                        If a ``begin_later=True`` transaction ends with no
-                        reads and no mutations, :meth:`commit` aborts locally
-                        without sending an RPC. If ``False``, the transaction
-                        is started as soon as the context manager is entered.
-                        ``self.begin()`` can also be called manually to begin
-                        the transaction at any time. Default is ``False``.
+                        Avoid running ``query.fetch()`` or
+                        ``aggregation_query.fetch()`` before ``get()`` or
+                        ``begin()`` when ``begin_later=True``, because those
+                        RPCs send ``new_transaction`` without recording
+                        :attr:`id` on this ``Transaction`` and can orphan a
+                        locked server transaction. If a ``begin_later=True``
+                        transaction ends with no reads and no mutations,
+                        :meth:`commit` aborts locally without sending an RPC.
+                        If ``False``, the transaction is started as soon as
+                        the context manager is entered. ``self.begin()`` can
+                        also be called manually to begin the transaction at
+                        any time. Default is ``False``.
 
     :raises: :class:`ValueError` if ``read_time`` is specified when
              ``read_only=False``.

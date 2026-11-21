@@ -93,14 +93,17 @@ class Entity(dict):
 
     In addition, three container types are supported:
 
-    * :class:`list` (nested lists such as ``[[1, 2]]`` are rejected by
-      Datastore)
+    * :class:`list` (nested lists such as ``[[1, 2]]`` are accepted when
+      indexed, but fail with
+      :class:`~google.api_core.exceptions.InvalidArgument` if added to
+      ``exclude_from_indexes`` because inner array values cannot be marked
+      excluded)
     * :class:`~google.cloud.datastore.entity.Entity`
     * :class:`dict` (treated like an embedded ``Entity`` without a key or
       ``exclude_from_indexes``)
 
     Each entry in a list must be one of the supported value types (basic or
-    non-list container) and each value in an
+    container) and each value in an
     :class:`~google.cloud.datastore.entity.Entity` must as well. In
     this case an :class:`~google.cloud.datastore.entity.Entity` **as a
     container** acts as a :class:`dict`, but also has the special annotations
@@ -132,8 +135,9 @@ class Entity(dict):
         - All properties are indexed by default. Indexed :class:`str` (UTF-8
           encoded, stored in ``string_value``) and :class:`bytes` (stored raw
           in ``blob_value``) values are limited to 1,500 bytes. Larger values
-          (up to 1,000,000 bytes, within the 1 MiB minus 4 bytes total entity
-          limit) must be listed in ``exclude_from_indexes``.
+          (up to 1,048,487 bytes, or 1 MiB minus 89 bytes, within the 1 MiB
+          minus 4 bytes total entity limit) must be listed in
+          ``exclude_from_indexes``.
         - The ``exclude_from_indexes`` constructor argument requires a
           :class:`tuple` or :class:`list` (passing a :class:`set` or
           :class:`str` raises :class:`TypeError`). On an existing or fetched
@@ -142,10 +146,15 @@ class Entity(dict):
           ``entity.exclude_from_indexes.add("body")``).
         - ``exclude_from_indexes`` matches top-level property names only.
           Dotted paths such as ``"nested.large_text"`` have no effect. Adding
-          ``"nested"`` excludes the entire nested object. To exclude a single
-          field inside a nested object while indexing its siblings, store an
-          embedded ``Entity(exclude_from_indexes=("large_text",))`` instead of
-          a plain :class:`dict`.
+          ``"nested"`` sets ``exclude_from_indexes`` on the outer embedded
+          entity value only, which prevents indexing of nested values up to
+          1,500 bytes, but nested strings or bytes over 1,500 bytes in a plain
+          :class:`dict` still fail with
+          :class:`~google.api_core.exceptions.InvalidArgument`. To store
+          nested values over 1,500 bytes or to exclude individual nested
+          fields while indexing siblings, store an embedded
+          ``Entity(exclude_from_indexes=("large_text",))`` instead of a plain
+          :class:`dict`.
         - Excluding a :class:`list` property marks every element unindexed.
           Empty lists (``[]``) lose their exclusion flag on round-trip, and
           reading an entity written by another client whose array mixes
@@ -153,11 +162,15 @@ class Entity(dict):
         - Naive :class:`datetime.datetime` values are treated as UTC (not
           local time), aware datetimes are converted to UTC, and sub-microsecond
           nanoseconds are truncated on write. Values read back as
-          timezone-aware UTC ``DatetimeWithNanoseconds`` objects, so comparing
-          a read-back timestamp against a naive ``datetime`` raises
-          :class:`TypeError`.
-        - See https://docs.cloud.google.com/datastore/docs/concepts/entities
-          and https://docs.cloud.google.com/datastore/docs/concepts/indexes#unindexed_properties
+          timezone-aware UTC
+          ``proto.datetime_helpers.DatetimeWithNanoseconds`` objects (not
+          ``google.api_core.datetime_helpers.DatetimeWithNanoseconds``).
+          Ordering comparisons (``<``, ``<=``, ``>``, ``>=``) against a naive
+          ``datetime`` raise :class:`TypeError`, while equality comparisons
+          (``==`` / ``!=``) silently return ``False`` / ``True``.
+        - See https://docs.cloud.google.com/datastore/docs/concepts/entities,
+          https://docs.cloud.google.com/datastore/docs/concepts/limits, and
+          https://docs.cloud.google.com/datastore/docs/concepts/indexes#unindexed_properties
           for entity, value type, and indexing limits.
 
     :type key: :class:`google.cloud.datastore.key.Key`

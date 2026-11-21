@@ -124,8 +124,10 @@ class AggregationResult(object):
     :param alias: The alias for the aggregation (either explicitly provided or
         server-generated such as ``property_1``).
 
-    :type value: int or float or None
-    :param value: The resulting value from the aggregation.
+    :type value: int or float
+    :param value: The resulting value from the aggregation (for 0 matching
+        entities, ``count``, ``sum``, and ``avg`` return ``0.0`` rather than
+        ``None``).
     """
 
     def __init__(self, alias, value):
@@ -306,7 +308,7 @@ class AggregationQuery(object):
               a :class:`list` of :class:`AggregationResult` objects per result
               bucket rather than individual :class:`AggregationResult`
               instances (for example,
-              ``for batch in agg_query.fetch(): for res in batch: ...``).
+              ``[res for batch in agg_query.fetch() for res in batch]``).
             - Always pass explicit ``alias=`` names to avoid server-generated
               names such as ``property_1``.
             - ``limit`` applies to the wrapped nested query (capping how many

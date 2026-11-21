@@ -80,8 +80,10 @@ def _determine_default_project(project=None):
     """Determine default project explicitly or implicitly as fall-back.
 
     During :class:`Client` initialization, ``GOOGLE_CLOUD_PROJECT`` (or
-    ``GCLOUD_PROJECT``) and ``credentials.project_id`` take precedence before
-    this fallback helper is invoked.
+    ``GCLOUD_PROJECT``) and an explicit ``credentials.project_id`` (when
+    ``credentials`` is passed) take precedence before this fallback helper is
+    invoked. This helper then checks ``DATASTORE_DATASET`` before falling back
+    to Application Default Credentials (``google.auth.default()``).
 
     When called directly with ``project=None``, this helper checks environments
     in the following order:
@@ -266,7 +268,9 @@ class Client(ClientWithProject):
 
     - Reuse a single ``Client`` instance across requests and threads to share
       the underlying gRPC channel. ``Client`` does not implement context
-      manager methods (``__enter__`` / ``__exit__``).
+      manager methods (``__enter__`` / ``__exit__``), and inherited
+      :meth:`close` closes only the HTTP session (it does not close the
+      default gRPC channel).
     - Active ``with client.transaction():`` and ``with client.batch():``
       contexts are isolated per thread via a thread-local stack
       (``_LocalStack``). Individual ``Transaction``, ``Batch``, ``Query``, and
@@ -285,9 +289,11 @@ class Client(ClientWithProject):
       ``client_options.api_endpoint``. The client ignores
       ``DATASTORE_PROJECT_ID`` (use ``project=``, ``GOOGLE_CLOUD_PROJECT``, or
       ``DATASTORE_DATASET`` instead).
-    - When ``project`` is omitted, resolution checks ``GOOGLE_CLOUD_PROJECT``
-      (or ``GCLOUD_PROJECT``), then ``credentials.project_id``, and finally
-      ``DATASTORE_DATASET``.
+    - When ``project`` is omitted, resolution checks in order:
+      ``GOOGLE_CLOUD_PROJECT`` (or ``GCLOUD_PROJECT``), explicit
+      ``credentials.project_id`` (when ``credentials`` is passed),
+      ``DATASTORE_DATASET``, and finally Application Default Credentials
+      (``google.auth.default()``).
     - When ``DATASTORE_EMULATOR_HOST`` is unset, ``client_options.api_endpoint``
       must include an explicit URL scheme (such as
       ``https://datastore.googleapis.com`` or ``http://localhost:8081``).
@@ -323,9 +329,11 @@ class Client(ClientWithProject):
 
     :type project: str
     :param project: (Optional) The project to pass to proxied API methods.
-                    If not passed, falls back to ``GOOGLE_CLOUD_PROJECT`` (or
-                    ``GCLOUD_PROJECT``), ``credentials.project_id``, and
-                    finally ``DATASTORE_DATASET``.
+                    If not passed, falls back in order to
+                    ``GOOGLE_CLOUD_PROJECT`` (or ``GCLOUD_PROJECT``), explicit
+                    ``credentials.project_id`` (when ``credentials`` is
+                    passed), ``DATASTORE_DATASET``, and Application Default
+                    Credentials (``google.auth.default()``).
 
     :type namespace: str
     :param namespace: (Optional) namespace to pass to proxied API methods.
@@ -764,10 +772,10 @@ class Client(ClientWithProject):
               entity are removed on the server.
             - Returns ``None``. Partial ``entity.key`` values are mutated in
               place with server-allocated complete keys upon commit.
-            - Outside an active transaction, ``put_multi`` commits in
-              ``NON_TRANSACTIONAL`` mode (not atomic across entities) and
-              supports up to 500 entities per call (does not chunk larger
-              sequences).
+            - Outside an active transaction, ``put_multi`` sends all entities
+              in a single ``NON_TRANSACTIONAL`` commit RPC without chunking
+              (not atomic across entities), subject to the 10 MiB maximum API
+              request size.
             - Inside ``with client.batch():`` or
               ``with client.transaction():``, writes are buffered until commit
               and ``retry`` and ``timeout`` are ignored.
@@ -862,9 +870,10 @@ class Client(ClientWithProject):
             - Accepts complete :class:`~google.cloud.datastore.key.Key` or
               :class:`~google.cloud.datastore.entity.Entity` instances. Partial
               keys raise :class:`ValueError` client-side.
-            - Outside an active transaction, ``delete_multi`` commits in
-              ``NON_TRANSACTIONAL`` mode (not atomic across keys) and supports
-              up to 500 keys per call (does not chunk larger sequences).
+            - Outside an active transaction, ``delete_multi`` sends all deletes
+              in a single ``NON_TRANSACTIONAL`` commit RPC without chunking
+              (not atomic across keys), subject to the 10 MiB maximum API
+              request size.
             - Inside ``with client.batch():`` or
               ``with client.transaction():``, deletes are buffered until commit
               and ``retry`` and ``timeout`` are ignored.
@@ -1004,7 +1013,8 @@ class Client(ClientWithProject):
 
         Inside ``with client.batch():``, ``client.put()`` and
         ``client.delete()`` buffer mutations and commit on normal exit
-        (discarding locally on exception). Maximum 500 mutations per commit.
+        (discarding locally on exception). Subject to the 10 MiB maximum API
+        request size per commit.
 
         :rtype: :class:`~google.cloud.datastore.batch.Batch`
         :returns: A new batch bound to this client.
@@ -1042,8 +1052,8 @@ class Client(ClientWithProject):
               :attr:`current_transaction`. Exhaust lazy query iterators before
               exiting the ``with`` block.
             - Buffered writes are serialized at ``put()`` time, are not visible
-              to reads in the same transaction, and support up to 500 mutations
-              per commit. See
+              to reads in the same transaction, and are subject to the 10 MiB
+              maximum transaction and API request size per commit. See
               :class:`~google.cloud.datastore.transaction.Transaction` for a
               retry-loop example and full lifecycle details.
 
@@ -1301,12 +1311,14 @@ class Client(ClientWithProject):
         Recommended over :meth:`reserve_ids` for reserving specific
         caller-chosen numeric IDs so Datastore will not auto-allocate them
         (unlike :meth:`allocate_ids`, which generates new IDs). Each key must
-        be complete with a numeric ID (not a string name), and
-        ``complete_keys`` must be non-empty.
+        be complete and ``complete_keys`` must be non-empty. Unlike
+        :meth:`reserve_ids_sequential`, string-named keys are accepted by the
+        API without raising, though Datastore only auto-allocates numeric IDs.
 
         :type complete_keys: list of :class:`google.cloud.datastore.key.Key`
         :param complete_keys:
-            Non-empty sequence of complete keys with numeric IDs to reserve.
+            Non-empty sequence of complete keys to reserve (intended for
+            numeric IDs).
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
@@ -1325,7 +1337,8 @@ class Client(ClientWithProject):
         :rtype: ``NoneType``
         :returns: None
         :raises: :class:`ValueError` if any of ``complete_keys`` is not a
-                 complete key.
+                 complete key, or :class:`IndexError` if ``complete_keys`` is
+                 empty.
         """
         for complete_key in complete_keys:
             if complete_key.is_partial:
