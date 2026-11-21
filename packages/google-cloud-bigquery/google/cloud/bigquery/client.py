@@ -234,7 +234,34 @@ class Project(object):
 
 
 class Client(ClientWithProject):
-    """Client to bundle configuration needed for API requests.
+    """Client to bundle configuration needed for BigQuery API requests.
+
+    Provides synchronous helpers for managing datasets, tables, routines,
+    models, jobs, SQL queries, bulk loads, and streaming inserts over HTTP/JSON
+    using Application Default Credentials by default.
+
+    Lifecycle and concurrency:
+
+    - Reuse a single ``Client`` instance across requests to share the
+      underlying HTTP connection pool. Call :meth:`close` on shutdown (or use
+      ``Client`` as a context manager with ``with`` for short-lived scripts).
+    - ``Client`` is safe to share across threads. Returned iterators such as
+      :class:`~google.cloud.bigquery.table.RowIterator` and DB-API cursors
+      are not thread-safe.
+    - When using ``multiprocessing`` or pre-fork servers (such as Gunicorn or
+      Celery), create ``Client`` instances after ``os.fork()`` because
+      optional BigQuery Storage gRPC channels are not fork-safe.
+
+    Environment variables:
+
+    - ``BIGQUERY_EMULATOR_HOST``: Overrides the default BigQuery API endpoint
+      host unless ``client_options.api_endpoint`` is explicitly set.
+    - ``GOOGLE_CLOUD_UNIVERSE_DOMAIN``: Sets the universe domain (default
+      ``googleapis.com``) unless ``client_options.universe_domain`` is
+      explicitly set. Must match the universe domain of the credentials.
+
+    For service concepts and error references, see
+    https://docs.cloud.google.com/bigquery/docs/introduction.
 
     Args:
         project (Optional[str]):
@@ -257,7 +284,8 @@ class Client(ClientWithProject):
             Default location for jobs / datasets / tables.
         default_query_job_config (Optional[google.cloud.bigquery.job.QueryJobConfig]):
             Default ``QueryJobConfig``.
-            Will be merged into job configs passed into the ``query`` method.
+            Will be merged into job configs passed into the :meth:`query` and
+            :meth:`query_and_wait` methods.
         default_load_job_config (Optional[google.cloud.bigquery.job.LoadJobConfig]):
             Default ``LoadJobConfig``.
             Will be merged into job configs passed into the ``load_table_*`` methods.
@@ -563,8 +591,14 @@ class Client(ClientWithProject):
 
         Returns:
             google.api_core.page_iterator.Iterator:
-                Iterator of :class:`~google.cloud.bigquery.dataset.DatasetListItem`.
+                Iterator of :class:`~google.cloud.bigquery.dataset.DatasetListItem`
                 associated with the project.
+
+        Note:
+            :class:`~google.cloud.bigquery.dataset.DatasetListItem` is a
+            lightweight summary object that omits full metadata such as
+            ``description`` and ``access_entries``. Call :meth:`get_dataset`
+            to fetch the full :class:`~google.cloud.bigquery.dataset.Dataset`.
         """
         extra_params: Dict[str, Any] = {}
         if project is None:
@@ -829,8 +863,11 @@ class Client(ClientWithProject):
                 A new ``Dataset`` returned from the API.
 
         Raises:
-            google.cloud.exceptions.Conflict:
-                If the dataset already exists.
+            google.api_core.exceptions.Conflict:
+                If the dataset already exists and ``exists_ok`` is ``False``.
+                BigQuery raises HTTP 409 ``Conflict`` (also aliased as
+                ``google.cloud.exceptions.Conflict``), not
+                :class:`~google.api_core.exceptions.AlreadyExists`.
         """
         dataset = self._dataset_from_arg(dataset)
         if isinstance(dataset, DatasetReference):
@@ -890,8 +927,11 @@ class Client(ClientWithProject):
                 A new ``Routine`` returned from the service.
 
         Raises:
-            google.cloud.exceptions.Conflict:
-                If the routine already exists.
+            google.api_core.exceptions.Conflict:
+                If the routine already exists and ``exists_ok`` is ``False``.
+                BigQuery raises HTTP 409 ``Conflict`` (also aliased as
+                ``google.cloud.exceptions.Conflict``), not
+                :class:`~google.api_core.exceptions.AlreadyExists`.
         """
         reference = routine.reference
         path = "/projects/{}/datasets/{}/routines".format(
@@ -952,8 +992,11 @@ class Client(ClientWithProject):
                 A new ``Table`` returned from the service.
 
         Raises:
-            google.cloud.exceptions.Conflict:
-                If the table already exists.
+            google.api_core.exceptions.Conflict:
+                If the table already exists and ``exists_ok`` is ``False``.
+                BigQuery raises HTTP 409 ``Conflict`` (also aliased as
+                ``google.cloud.exceptions.Conflict``), not
+                :class:`~google.api_core.exceptions.AlreadyExists`.
         """
         table = _table_arg_to_table(table, default_project=self.project)
         dataset_id = table.dataset_id
@@ -1040,6 +1083,10 @@ class Client(ClientWithProject):
         Returns:
             google.cloud.bigquery.dataset.Dataset:
                 A ``Dataset`` instance.
+
+        Raises:
+            google.api_core.exceptions.NotFound:
+                If the dataset does not exist (does not return ``None``).
         """
         if isinstance(dataset_ref, str):
             dataset_ref = DatasetReference.from_string(
@@ -1279,6 +1326,10 @@ class Client(ClientWithProject):
 
          Returns:
             google.cloud.bigquery.model.Model: A ``Model`` instance.
+
+         Raises:
+            google.api_core.exceptions.NotFound:
+                If the model does not exist (does not return ``None``).
         """
         if isinstance(model_ref, str):
             model_ref = ModelReference.from_string(
@@ -1324,6 +1375,10 @@ class Client(ClientWithProject):
          Returns:
             google.cloud.bigquery.routine.Routine:
                 A ``Routine`` instance.
+
+         Raises:
+            google.api_core.exceptions.NotFound:
+                If the routine does not exist (does not return ``None``).
         """
         if isinstance(routine_ref, str):
             routine_ref = RoutineReference.from_string(
@@ -1369,6 +1424,10 @@ class Client(ClientWithProject):
         Returns:
             google.cloud.bigquery.table.Table:
                 A ``Table`` instance.
+
+        Raises:
+            google.api_core.exceptions.NotFound:
+                If the table does not exist (does not return ``None``).
         """
         table_ref = _table_arg_to_table_ref(table, default_project=self.project)
         path = table_ref.path
@@ -1447,6 +1506,22 @@ class Client(ClientWithProject):
         Returns:
             google.cloud.bigquery.dataset.Dataset:
                 The modified ``Dataset`` instance.
+
+        Raises:
+            google.api_core.exceptions.PreconditionFailed:
+                If ``dataset.etag`` is set and the dataset was modified on the
+                server since it was read (HTTP 412).
+            google.api_core.exceptions.NotFound:
+                If the dataset does not exist.
+
+        Note:
+            Sends an HTTP PATCH containing only the attributes listed in
+            ``fields``. Mutations made locally to unlisted attributes on
+            ``dataset`` are ignored. To remove individual keys from ``labels``,
+            assign ``None`` as the value for each key to delete (for example,
+            ``dataset.labels = {"old_key": None}``) and include ``"labels"`` in
+            ``fields``. Removing keys with ``del`` or assigning ``{}`` does not
+            delete existing server-side labels over PATCH.
         """
         partial = dataset._build_resource(fields)
         if dataset.etag is not None:
@@ -1517,6 +1592,22 @@ class Client(ClientWithProject):
         Returns:
             google.cloud.bigquery.model.Model:
                 The model resource returned from the API call.
+
+        Raises:
+            google.api_core.exceptions.PreconditionFailed:
+                If ``model.etag`` is set and the model was modified on the
+                server since it was read (HTTP 412).
+            google.api_core.exceptions.NotFound:
+                If the model does not exist.
+
+        Note:
+            Sends an HTTP PATCH containing only the attributes listed in
+            ``fields``. Mutations made locally to unlisted attributes on
+            ``model`` are ignored. To remove individual keys from ``labels``,
+            assign ``None`` as the value for each key to delete (for example,
+            ``model.labels = {"old_key": None}``) and include ``"labels"`` in
+            ``fields``. Removing keys with ``del`` or assigning ``{}`` does not
+            delete existing server-side labels over PATCH.
         """
         partial = model._build_resource(fields)
         if model.etag:
@@ -1660,6 +1751,22 @@ class Client(ClientWithProject):
         Returns:
             google.cloud.bigquery.table.Table:
                 The table resource returned from the API call.
+
+        Raises:
+            google.api_core.exceptions.PreconditionFailed:
+                If ``table.etag`` is set and the table was modified on the
+                server since it was read (HTTP 412).
+            google.api_core.exceptions.NotFound:
+                If the table does not exist.
+
+        Note:
+            Sends an HTTP PATCH containing only the attributes listed in
+            ``fields``. Mutations made locally to unlisted attributes on
+            ``table`` are ignored. To remove individual keys from ``labels``,
+            assign ``None`` as the value for each key to delete (for example,
+            ``table.labels = {"old_key": None}``) and include ``"labels"`` in
+            ``fields``. Removing keys with ``del`` or assigning ``{}`` does not
+            delete existing server-side labels over PATCH.
         """
         partial = table._build_resource(fields)
         if table.etag is not None:
@@ -1890,6 +1997,14 @@ class Client(ClientWithProject):
                 Iterator of
                 :class:`~google.cloud.bigquery.table.TableListItem` contained
                 within the requested dataset.
+
+        Note:
+            :class:`~google.cloud.bigquery.table.TableListItem` is a
+            lightweight read-only summary object that omits full metadata such
+            as ``schema``, ``num_rows``, and ``description``. Call
+            :meth:`get_table` to fetch the full
+            :class:`~google.cloud.bigquery.table.Table` before inspecting the
+            schema or calling :meth:`update_table`.
         """
         dataset = self._dataset_from_arg(dataset)
         path = "%s/tables" % dataset.path
@@ -2053,7 +2168,8 @@ class Client(ClientWithProject):
                 QueryJob \
             ]): Job or job identifier.
             project (Optional[str]):
-                ID of the project which owns the job (defaults to the client's project).
+                ID of the project which owns the job (defaults to the client's
+                project). Ignored if ``job_id`` is a job object.
             location (Optional[str]):
                 Location where the job was run. Ignored if ``job_id`` is a job
                 object.
@@ -2420,7 +2536,8 @@ class Client(ClientWithProject):
             ]):
                 Job identifier.
             project (Optional[str]):
-                ID of the project which owns the job (defaults to the client's project).
+                ID of the project which owns the job (defaults to the client's
+                project). Ignored if ``job_id`` is a job object.
             location (Optional[str]):
                 Location where the job was run. Ignored if ``job_id`` is a job
                 object.
@@ -2433,6 +2550,22 @@ class Client(ClientWithProject):
         Returns:
             Union[job.LoadJob, job.CopyJob, job.ExtractJob, job.QueryJob, job.UnknownJob]:
                 Job instance, based on the resource returned by the API.
+
+        Raises:
+            google.api_core.exceptions.NotFound:
+                If the job does not exist (does not return ``None``).
+
+        Note:
+            Performs a single non-blocking ``jobs.get`` request and returns the
+            job object even when the job is still running or has failed (it
+            does not raise on job failure). Inspect ``job.state``
+            (``"PENDING"``, ``"RUNNING"``, or ``"DONE"``), ``job.error_result``
+            (primary failure mapping with ``"reason"`` and ``"message"`` when
+            failed, or ``None``), and ``job.errors`` (all error mappings
+            reported for the job), or call ``job.result()`` to wait for
+            completion and raise
+            :class:`~google.api_core.exceptions.GoogleAPICallError` on failure.
+            To retry a failed job, submit a new job with a new ``job_id``.
         """
         extra_params = {"projection": "full"}
 
@@ -2487,7 +2620,8 @@ class Client(ClientWithProject):
                 google.cloud.bigquery.job.QueryJob \
             ]): Job identifier.
             project (Optional[str]):
-                ID of the project which owns the job (defaults to the client's project).
+                ID of the project which owns the job (defaults to the client's
+                project). Ignored if ``job_id`` is a job object.
             location (Optional[str]):
                 Location where the job was run. Ignored if ``job_id`` is a job
                 object.
@@ -2505,6 +2639,15 @@ class Client(ClientWithProject):
                 google.cloud.bigquery.job.QueryJob, \
             ]:
                 Job instance, based on the resource returned by the API.
+
+        Raises:
+            google.api_core.exceptions.NotFound:
+                If the job does not exist.
+
+        Note:
+            Cancellation is asynchronous and best-effort. The returned job may
+            still be transitioning to ``"DONE"``, so inspect :meth:`get_job`
+            and ``job.cancelled()`` if you need to confirm final status.
         """
         extra_params = {"projection": "full"}
 
@@ -2580,8 +2723,9 @@ class Client(ClientWithProject):
                 ``next_page_token`` of
                 :class:`~google.api_core.page_iterator.HTTPIterator`.
             all_users (Optional[bool]):
-                If true, include jobs owned by all users in the project.
-                Defaults to :data:`False`.
+                If ``True``, include jobs owned by all users in the project
+                (requires appropriate IAM permissions). Defaults to
+                :data:`False` (lists only the caller's own jobs).
             state_filter (Optional[str]):
                 If set, include only jobs matching the given state. One of:
                     * ``"done"``
@@ -2712,6 +2856,18 @@ class Client(ClientWithProject):
             TypeError:
                 If ``job_config`` is not an instance of
                 :class:`~google.cloud.bigquery.job.LoadJobConfig` class.
+
+        Note:
+            - When unset in ``job_config``, BigQuery defaults ``source_format``
+              to :attr:`~google.cloud.bigquery.job.SourceFormat.CSV` and
+              ``write_disposition`` to
+              :attr:`~google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND`.
+            - CSV-only options on ``LoadJobConfig`` (such as
+              ``skip_leading_rows``, ``field_delimiter``, or
+              ``quote_character``) apply only to CSV loads and are ignored for
+              formats such as Parquet, Avro, ORC, or JSON.
+            - ``location`` (or :attr:`location` on the client) must match the
+              region of the destination dataset.
         """
         job_id = _make_job_id(job_id, job_id_prefix)
 
@@ -2813,6 +2969,25 @@ class Client(ClientWithProject):
             TypeError:
                 If ``job_config`` is not an instance of
                 :class:`~google.cloud.bigquery.job.LoadJobConfig` class.
+
+        Note:
+            - ``file_obj`` must be opened in binary mode (``"rb"`` or a binary
+              buffer such as :class:`io.BytesIO`). Text streams raise
+              ``ValueError`` or fail during upload.
+            - ``rewind`` defaults to ``False``. If you wrote into ``file_obj``
+              before calling this method, seek to byte 0 or pass
+              ``rewind=True``, otherwise BigQuery reads from EOF and loads 0
+              bytes.
+            - When unset in ``job_config``, BigQuery defaults ``source_format``
+              to :attr:`~google.cloud.bigquery.job.SourceFormat.CSV` and
+              ``write_disposition`` to
+              :attr:`~google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND`.
+            - Media uploads retry via ``num_retries`` (an integer count), not a
+              :class:`~google.api_core.retry.Retry` object.
+            - CSV-only ``LoadJobConfig`` options (such as ``skip_leading_rows``
+              or ``field_delimiter``) are ignored for non-CSV formats.
+            - ``location`` (or :attr:`location` on the client) must match the
+              region of the destination dataset.
         """
         job_id = _make_job_id(job_id, job_id_prefix)
 
@@ -2967,6 +3142,33 @@ class Client(ClientWithProject):
             TypeError:
                 If ``job_config`` is not an instance of
                 :class:`~google.cloud.bigquery.job.LoadJobConfig` class.
+
+        Note:
+            - Defaults ``source_format`` to
+              :attr:`~google.cloud.bigquery.job.SourceFormat.PARQUET` (with
+              ``parquet_options.enable_list_inference=True``) and serializes
+              the DataFrame via :mod:`pyarrow` to a temporary file on local
+              disk before uploading (removed afterward). CSV-only
+              ``LoadJobConfig`` options (such as ``skip_leading_rows`` or
+              ``field_delimiter``) are ignored for Parquet loads.
+            - When ``job_config.schema`` is unset and ``write_disposition`` is
+              not
+              :attr:`~google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE`,
+              this method performs an extra :meth:`get_table` call to align
+              serialization with the existing table schema (if the table
+              exists).
+            - PyArrow and pandas dtype caveats: ``object`` columns containing
+              mixed types or all-null values may fail inference without an
+              explicit ``job_config.schema``. Pass :class:`decimal.Decimal`
+              values with an explicit ``NUMERIC`` or ``BIGNUMERIC`` schema for
+              fixed-point columns, pass JSON strings with an explicit ``JSON``
+              schema field for JSON columns, and note that timezone-naive
+              ``datetime64`` columns map to ``DATETIME`` while timezone-aware
+              (UTC) ``datetime64`` columns map to ``TIMESTAMP``.
+            - Media uploads retry via ``num_retries`` (an integer count), not a
+              :class:`~google.api_core.retry.Retry` object.
+            - ``location`` (or :attr:`location` on the client) must match the
+              region of the destination dataset.
         """
         warnings.warn(
             _LOAD_TABLE_FROM_DATAFRAME_DEPRECATED,
@@ -3193,6 +3395,23 @@ class Client(ClientWithProject):
             TypeError:
                 If ``job_config`` is not an instance of
                 :class:`~google.cloud.bigquery.job.LoadJobConfig` class.
+
+        Note:
+            - Serializes ``json_rows`` into an in-memory UTF-8 newline-delimited
+              JSON buffer (:class:`io.BytesIO`) and always sets
+              ``source_format`` to
+              :attr:`~google.cloud.bigquery.job.SourceFormat.NEWLINE_DELIMITED_JSON`.
+            - When both ``job_config.schema`` and ``job_config.autodetect`` are
+              unset, sets ``autodetect=True`` for ``WRITE_TRUNCATE`` or
+              ``WRITE_EMPTY``. Otherwise (including default ``WRITE_APPEND``),
+              performs an extra :meth:`get_table` call and sets
+              ``autodetect=True`` only if the destination table does not exist.
+            - Media uploads retry via ``num_retries`` (an integer count), not a
+              :class:`~google.api_core.retry.Retry` object. CSV-only
+              ``LoadJobConfig`` options (such as ``skip_leading_rows`` or
+              ``field_delimiter``) are ignored for JSON loads.
+            - ``location`` (or :attr:`location` on the client) must match the
+              region of the destination dataset.
         """
         job_id = _make_job_id(job_id, job_id_prefix)
 
@@ -3664,47 +3883,62 @@ class Client(ClientWithProject):
 
         Args:
             query (str):
-                SQL query to be executed. Defaults to the standard SQL
-                dialect. Use the ``job_config`` parameter to change dialects.
+                SQL query to be executed. Defaults to GoogleSQL (Standard SQL,
+                ``use_legacy_sql=False``), unlike the raw REST API default. Use
+                the ``job_config`` parameter to change dialects.
             job_config (Optional[google.cloud.bigquery.job.QueryJobConfig]):
                 Extra configuration options for the job.
                 To override any options that were previously set in
                 the ``default_query_job_config`` given to the
                 ``Client`` constructor, manually set those options to ``None``,
                 or whatever value is preferred.
-            job_id (Optional[str]): ID to use for the query job.
+            job_id (Optional[str]):
+                ID to use for the query job. Supplying an explicit ``job_id``
+                disables automatic ``job_retry`` (see ``job_retry`` below).
             job_id_prefix (Optional[str]):
                 The prefix to use for a randomly generated job ID. This parameter
                 will be ignored if a ``job_id`` is also given.
             location (Optional[str]):
                 Location where to run the job. Must match the location of the
                 table used in the query as well as the destination table.
+                Defaults to :attr:`location` on the client.
             project (Optional[str]):
                 Project ID of the project of where to run the job. Defaults
                 to the client's project.
             retry (Optional[google.api_core.retry.Retry]):
-                How to retry the RPC.  This only applies to making RPC
-                calls.  It isn't used to retry failed jobs.  This has
-                a reasonable default that should only be overridden
-                with care.
+                How to retry the RPC. This only applies to making RPC calls
+                and is not used to retry failed jobs. Defaults to
+                :data:`~google.cloud.bigquery.retry.DEFAULT_RETRY`, which
+                evaluates ``exc.errors[0]["reason"]`` before HTTP status codes
+                (retrying transient reasons such as HTTP 403
+                ``rateLimitExceeded``, ``backendError``, ``internalError``, and
+                ``badGateway``, while failing fast on permanent reasons such as
+                ``accessDenied`` or ``quotaExceeded``).
             timeout (Optional[float]):
                 The number of seconds to wait for the underlying HTTP transport
-                before using ``retry``.
+                of the initial request before using ``retry``. This does not
+                bound query execution or waiting in ``QueryJob.result()``.
             job_retry (Optional[google.api_core.retry.Retry]):
-                How to retry failed jobs.  The default retries
-                rate-limit-exceeded errors.  Passing ``None`` disables
-                job retry.
+                How to retry failed query jobs. Defaults to
+                :data:`~google.cloud.bigquery.retry.DEFAULT_JOB_RETRY`, which
+                retries transient job execution reasons (``jobBackendError``,
+                ``jobInternalError``, ``jobRateLimitExceeded``) as well as
+                transient request errors by submitting a new server-side job
+                with a new job ID. Passing ``None`` disables job retry.
 
-                Not all jobs can be retried.  If ``job_id`` is
-                provided, then the job returned by the query will not
-                be retryable, and an exception will be raised if a
-                non-``None`` (and non-default) value for ``job_retry``
-                is also provided.
+                Not all jobs can be retried. If ``job_id`` is provided,
+                automatic job retry is disabled: passing the default
+                ``DEFAULT_JOB_RETRY`` emits a :class:`FutureWarning`, and
+                passing a custom non-``None`` ``job_retry`` raises
+                :class:`TypeError`. Use ``job_id_prefix`` to customize IDs
+                while keeping automatic job retries, or pass
+                ``job_retry=None``.
 
-                Note that errors aren't detected until ``result()`` is
-                called on the job returned. The ``job_retry``
-                specified here becomes the default ``job_retry`` for
-                ``result()``, where it can also be specified.
+                Note that job execution errors are not raised until
+                :meth:`~google.cloud.bigquery.job.QueryJob.result` is called.
+                The ``job_retry`` specified here becomes the default
+                ``job_retry`` for ``result()``, where it can also be
+                overridden.
             api_method (Union[str, enums.QueryApiMethod]):
                 Method with which to start the query job.  By default,
                 the jobs.insert API is used for starting a query.
@@ -3726,6 +3960,36 @@ class Client(ClientWithProject):
                 :class:`~google.cloud.bigquery.job.QueryJobConfig`
                 class, or if both ``job_id`` and non-``None`` non-default
                 ``job_retry`` are provided.
+
+        Note:
+            - Returns a :class:`~google.cloud.bigquery.job.QueryJob`
+              immediately without waiting for completion (always creating a job
+              with the default ``jobs.insert`` path). Prefer
+              :meth:`query_and_wait` for interactive queries when you want the
+              faster ``jobs.query`` path and automatic job cancellation on wait
+              errors.
+            - ``timeout`` bounds the initial HTTP request only.
+              :meth:`~google.cloud.bigquery.job.QueryJob.result` accepts its
+              own ``timeout`` that bounds client-side waiting without
+              cancelling the running server job. To bound server execution and
+              billing, set
+              :attr:`~google.cloud.bigquery.job.QueryJobConfig.job_timeout_ms`
+              or call :meth:`cancel_job` on timeout.
+            - When automatic ``job_retry`` restarts a failed job during
+              ``result()``, the ``QueryJob`` is updated in place with the new
+              ``job_id``. To retry a failed job manually, resubmit with a new
+              ``job_id`` (reusing a failed ``job_id`` returns the same failed
+              job). See
+              https://docs.cloud.google.com/bigquery/docs/managing-jobs#repeat_jobs
+              and https://docs.cloud.google.com/bigquery/docs/errors.
+            - With ``dry_run=True`` on ``job_config``,
+              :meth:`~google.cloud.bigquery.job.QueryJob.result` returns an
+              empty iterator immediately without an extra RPC, while
+              ``total_bytes_processed`` and ``schema`` are populated from the
+              initial response. However, if any queried table enforces
+              Row-Level Security (row access policies), BigQuery masks
+              ``total_bytes_processed`` to ``0``. Do not treat ``0`` as a
+              zero-cost guarantee on RLS-protected tables.
         """
         _job_helpers.validate_job_retry(job_id, job_retry)
 
@@ -3808,8 +4072,9 @@ class Client(ClientWithProject):
 
         Args:
             query (str):
-                SQL query to be executed. Defaults to the standard SQL
-                dialect. Use the ``job_config`` parameter to change dialects.
+                SQL query to be executed. Defaults to GoogleSQL (Standard SQL,
+                ``use_legacy_sql=False``), unlike the raw REST API default. Use
+                the ``job_config`` parameter to change dialects.
             job_config (Optional[google.cloud.bigquery.job.QueryJobConfig]):
                 Extra configuration options for the job.
                 To override any options that were previously set in
@@ -3819,27 +4084,39 @@ class Client(ClientWithProject):
             location (Optional[str]):
                 Location where to run the job. Must match the location of the
                 table used in the query as well as the destination table.
+                Defaults to :attr:`location` on the client.
             project (Optional[str]):
                 Project ID of the project of where to run the job. Defaults
                 to the client's project.
             api_timeout (Optional[float]):
-                The number of seconds to wait for the underlying HTTP transport
-                before using ``retry``.
+                The number of seconds to wait for each underlying HTTP request
+                before using ``retry`` (``jobs.getQueryResults`` enforces a
+                minimum transport timeout floor).
             wait_timeout (Optional[Union[float, object]]):
-                The number of seconds to wait for the query to finish. If the
-                query doesn't finish before this timeout, the client attempts
-                to cancel the query. If unset, the underlying REST API calls
-                have timeouts, but we still wait indefinitely for the job to
-                finish.
+                The total number of seconds to wait for the query to finish. If
+                waiting raises an exception (including timing out after
+                ``wait_timeout``), the client attempts to cancel the running
+                query job. If unset, the client waits indefinitely for the job
+                to finish (set
+                :attr:`~google.cloud.bigquery.job.QueryJobConfig.job_timeout_ms`
+                to enforce a server-side execution limit).
             retry (Optional[google.api_core.retry.Retry]):
-                How to retry the RPC.  This only applies to making RPC
-                calls.  It isn't used to retry failed jobs.  This has
-                a reasonable default that should only be overridden
-                with care.
+                How to retry the RPC. This only applies to making RPC calls
+                and is not used to retry failed jobs. Defaults to
+                :data:`~google.cloud.bigquery.retry.DEFAULT_RETRY`, which
+                evaluates ``exc.errors[0]["reason"]`` before HTTP status codes
+                (retrying transient reasons such as HTTP 403
+                ``rateLimitExceeded``, ``backendError``, ``internalError``, and
+                ``badGateway``, while failing fast on permanent reasons such as
+                ``accessDenied`` or ``quotaExceeded``).
             job_retry (Optional[google.api_core.retry.Retry]):
-                How to retry failed jobs.  The default retries
-                rate-limit-exceeded errors.  Passing ``None`` disables
-                job retry. Not all jobs can be retried.
+                How to retry failed query jobs. Defaults to
+                :data:`~google.cloud.bigquery.retry.DEFAULT_JOB_RETRY`, which
+                retries transient job execution reasons (``jobBackendError``,
+                ``jobInternalError``, ``jobRateLimitExceeded``) as well as
+                transient request errors by submitting a new server-side job.
+                Passing ``None`` disables job retry. Not all jobs can be
+                retried.
             page_size (Optional[int]):
                 The maximum number of rows in each page of results from the
                 initial jobs.query request. Non-positive values are ignored.
@@ -3893,6 +4170,33 @@ class Client(ClientWithProject):
             google.cloud.bigquery.exceptions.BigQueryError:
                 If pyarrow or google-cloud-bigquery-storage is missing or too
                 old to read ``ARROW`` results. The query isn't sent.
+
+        Note:
+            - Uses the faster ``jobs.query`` path when all configured options
+              are supported and automatically falls back to ``jobs.insert``
+              otherwise. Compare with :meth:`query`, which returns a
+              :class:`~google.cloud.bigquery.job.QueryJob` immediately without
+              waiting.
+            - Unlike :meth:`~google.cloud.bigquery.job.QueryJob.result`, if
+              waiting raises an exception (such as a timeout from
+              ``wait_timeout``), this method attempts to cancel the running
+              BigQuery job.
+            - When :attr:`default_job_creation_mode` is
+              ``JOB_CREATION_OPTIONAL`` (or when
+              ``query_results_format="ARROW"`` with
+              ``default_job_creation_mode`` unset), single-page results may run
+              without creating a job, so the returned iterator's ``job_id`` can
+              be ``None``.
+            - With ``dry_run=True`` on ``job_config``, returns an empty
+              iterator and populates ``total_bytes_processed`` on the iterator.
+              However, if any queried table enforces Row-Level Security (row
+              access policies), BigQuery masks ``total_bytes_processed`` to
+              ``0``. Do not treat ``0`` as a zero-cost guarantee on
+              RLS-protected tables.
+            - See https://docs.cloud.google.com/bigquery/docs/errors for API
+              error reason codes and
+              https://docs.cloud.google.com/bigquery/docs/error-messages for
+              client and connectivity errors.
         """
         return self._query_and_wait_bigframes(
             query,
@@ -4024,6 +4328,27 @@ class Client(ClientWithProject):
             ValueError:
                 If the table's schema is empty and ``selected_fields`` is not
                 provided.
+
+        Note:
+            - Row-level validation failures return HTTP 200 and do not raise an
+              exception. Always inspect the returned list of per-row error
+              mappings (empty on full success).
+            - By default (``skip_invalid_rows=False``), a single invalid row
+              aborts the entire batch and valid sibling rows return
+              ``"stopped"`` errors. Pass ``skip_invalid_rows=True`` to persist
+              valid rows in a mixed batch.
+            - Requires a populated schema on ``table`` (for example, fetched
+              via :meth:`get_table`) or passed via ``selected_fields``.
+            - Streaming inserts are append-only into the streaming buffer (no
+              ``WRITE_TRUNCATE``), where newly inserted rows may lag in
+              ``table.num_rows`` metadata and have streaming-buffer limits.
+              ``row_ids`` provides only best-effort deduplication, and passing
+              ``row_ids=AutoRowIDs.DISABLED`` with default retries can insert
+              duplicate rows (pass ``retry=None`` as well if duplicates are
+              unacceptable). For new high-volume or exactly-once streaming
+              workloads, use the BigQuery Storage Write API in
+              ``google-cloud-bigquery-storage``:
+              https://docs.cloud.google.com/bigquery/docs/write-api.
         """
         if not isinstance(rows, (collections_abc.Sequence, collections_abc.Iterator)):
             raise TypeError("rows argument should be a sequence of dicts or tuples")
@@ -4105,6 +4430,23 @@ class Client(ClientWithProject):
 
         Raises:
             ValueError: if table's schema is not set
+
+        Note:
+            - Row-level validation failures return HTTP 200 and do not raise an
+              exception. Because this method returns one inner list per chunk,
+              a successful insert returns ``[[]]`` (truthy in boolean context).
+              Check ``any(errors)`` rather than ``if errors:``.
+            - By default (``skip_invalid_rows=False``), a single invalid row
+              aborts its entire chunk. Pass ``skip_invalid_rows=True`` to
+              persist valid rows in a mixed chunk.
+            - Requires a populated schema on ``table`` (for example, fetched
+              via :meth:`get_table`) or passed via ``selected_fields``.
+            - Streaming inserts are append-only into the streaming buffer (no
+              ``WRITE_TRUNCATE``) with best-effort deduplication via
+              ``row_ids``. For new high-volume or exactly-once streaming
+              workloads, use the BigQuery Storage Write API in
+              ``google-cloud-bigquery-storage``:
+              https://docs.cloud.google.com/bigquery/docs/write-api.
         """
         warnings.warn(
             _INSERT_ROWS_FROM_DATAFRAME_DEPRECATED,
@@ -4205,7 +4547,33 @@ class Client(ClientWithProject):
                 the mappings describing one or more problems with the row.
 
         Raises:
-            TypeError: if `json_rows` is not a `Sequence`.
+            TypeError:
+                If ``json_rows`` is not a ``Sequence`` or ``Iterator`` (for
+                example, passing a single ``dict`` instead of a list of dicts).
+
+        Note:
+            - Row-level validation failures return HTTP 200 and do not raise an
+              exception. Always inspect the returned list of per-row error
+              mappings (empty on full success).
+            - By default (``skip_invalid_rows=False``), a single invalid row
+              aborts the entire batch and valid sibling rows return
+              ``"stopped"`` errors. Pass ``skip_invalid_rows=True`` to persist
+              valid rows in a mixed batch and inspect the returned error list
+              for failed indices.
+            - ``json_rows`` must be a sequence (or iterator) of row mappings,
+              not a single ``dict``.
+            - Streaming inserts are append-only into the streaming buffer (no
+              ``WRITE_TRUNCATE``), where newly inserted rows may lag in
+              ``table.num_rows`` metadata and have streaming-buffer limits.
+            - ``row_ids`` (``AutoRowIDs.GENERATE_UUID`` by default) provides
+              only best-effort deduplication, not guaranteed exactly-once
+              delivery. Passing ``row_ids=AutoRowIDs.DISABLED`` while leaving
+              :data:`~google.cloud.bigquery.retry.DEFAULT_INSERT_ROWS_RETRY`
+              enabled can insert duplicate rows on transient retries (pass
+              ``retry=None`` as well if duplicates are unacceptable).
+            - For new high-volume or exactly-once streaming workloads, use the
+              BigQuery Storage Write API in ``google-cloud-bigquery-storage``:
+              https://docs.cloud.google.com/bigquery/docs/write-api.
         """
         if not isinstance(
             json_rows, (collections_abc.Sequence, collections_abc.Iterator)
@@ -4356,10 +4724,15 @@ class Client(ClientWithProject):
 
         .. note::
 
-           This method assumes that the provided schema is up-to-date with the
-           schema as defined on the back-end: if the two schemas are not
-           identical, the values returned may be incomplete. To ensure that the
-           local copy of the schema is up-to-date, call ``client.get_table``.
+           - This method calls the ``tabledata.list`` API, which only supports
+             native BigQuery storage tables and fails on views, materialized
+             views, and external tables. Use :meth:`query` or
+             :meth:`query_and_wait` instead to read from views, materialized
+             views, or external tables.
+           - This method assumes that the provided schema is up-to-date with the
+             schema as defined on the back-end: if the two schemas are not
+             identical, the values returned may be incomplete. To ensure that the
+             local copy of the schema is up-to-date, call ``client.get_table``.
 
         Args:
             table (Union[ \

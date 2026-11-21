@@ -12,6 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Retry policies and default timeout constants for BigQuery API calls.
+
+This module defines retry policies for standard REST API requests
+(:data:`DEFAULT_RETRY`), legacy streaming inserts
+(:data:`DEFAULT_INSERT_ROWS_RETRY`), and transient query job failures
+(:data:`DEFAULT_JOB_RETRY`). Predicates evaluate structured BigQuery error
+reasons in ``exc.errors[0]["reason"]`` before falling back to HTTP status codes
+or transport exceptions.
+
+See https://docs.cloud.google.com/bigquery/docs/errors for API status and
+reason codes, and https://docs.cloud.google.com/bigquery/docs/error-messages
+for client and connectivity errors.
+"""
+
 import logging
 
 from google.api_core import exceptions
@@ -79,17 +93,29 @@ def _should_retry(exc):
 
 
 DEFAULT_RETRY = retry.Retry(predicate=_should_retry, deadline=_DEFAULT_RETRY_DEADLINE)
-"""The default retry object.
+"""The default retry object for BigQuery API requests.
 
-Any method with a ``retry`` parameter will be retried automatically,
-with reasonable defaults. To disable retry, pass ``retry=None``.
-To modify the default retry behavior, call a ``with_XXX`` method
-on ``DEFAULT_RETRY``. For example, to change the deadline to 30 seconds,
-pass ``retry=bigquery.DEFAULT_RETRY.with_deadline(30)``.
+Evaluates the structured error reason in ``exc.errors[0]["reason"]`` before
+HTTP status codes. Transient request reasons such as ``rateLimitExceeded``
+(including HTTP 403), ``backendError``, ``internalError``, and ``badGateway``
+are retried, while permanent structured reasons (such as ``accessDenied``,
+``invalidQuery``, or ``quotaExceeded``) fail immediately without retry even on
+HTTP 403 or 5xx responses. Raw HTTP 429/5xx and transport errors are retried
+only when no structured reason is present.
 
-Note: streaming insert methods (``Client.insert_rows``,
-``Client.insert_rows_json``, ``Client.insert_rows_from_dataframe``) default to
-:data:`DEFAULT_INSERT_ROWS_RETRY` instead.
+Any method with a ``retry`` parameter will be retried automatically using this
+default. To disable retries, pass ``retry=None``. To customize retry settings,
+call a ``with_*`` method on ``DEFAULT_RETRY`` (for example,
+``retry=bigquery.DEFAULT_RETRY.with_deadline(30)``).
+
+Note:
+    Streaming insert methods (``Client.insert_rows``,
+    ``Client.insert_rows_json``, and ``Client.insert_rows_from_dataframe``)
+    default to :data:`DEFAULT_INSERT_ROWS_RETRY` instead.
+
+See https://docs.cloud.google.com/bigquery/docs/errors for API status and
+reason codes, and https://docs.cloud.google.com/bigquery/docs/error-messages
+for client and connectivity errors.
 """
 
 
@@ -107,13 +133,24 @@ def _should_retry_insert_rows(exc):
 
 
 DEFAULT_INSERT_ROWS_RETRY = DEFAULT_RETRY.with_predicate(_should_retry_insert_rows)
-"""The default retry object for streaming inserts.
+"""The default retry object for legacy streaming inserts.
 
-Used by ``Client.insert_rows``, ``Client.insert_rows_json`` and
+Used by ``Client.insert_rows``, ``Client.insert_rows_json``, and
 ``Client.insert_rows_from_dataframe``. Identical to :data:`DEFAULT_RETRY`,
-except that :class:`requests.exceptions.SSLError` is *not* retried, because
-for ``tabledata.insertAll`` it typically indicates an invalid request (e.g. a
+except that :class:`requests.exceptions.SSLError` is not retried, because for
+``tabledata.insertAll`` it typically indicates an invalid request (such as a
 schema mismatch) rather than a transient failure.
+
+Note:
+    - HTTP 200 per-row validation errors are returned in the response list
+      rather than raised or retried.
+    - Retrying transient transport or server errors can insert duplicate rows
+      if ``row_ids=AutoRowIDs.DISABLED`` is passed (because no ``insertId`` is
+      sent for best-effort deduplication). Pass ``retry=None`` as well if
+      duplicate rows are unacceptable.
+    - For new high-volume or exactly-once streaming workloads, use the BigQuery
+      Storage Write API in ``google-cloud-bigquery-storage``:
+      https://docs.cloud.google.com/bigquery/docs/write-api.
 """
 
 
@@ -197,8 +234,21 @@ def _job_should_retry(exc):
 DEFAULT_JOB_RETRY = retry.Retry(
     predicate=_job_should_retry, deadline=_DEFAULT_JOB_DEADLINE
 )
-"""
-The default job retry object.
+"""The default retry object for retrying transient BigQuery query job failures.
+
+Applies when a query job finishes in state ``DONE`` with a transient job
+execution reason (``jobBackendError``, ``jobInternalError``, or
+``jobRateLimitExceeded``) as well as transient request errors matched by
+``_should_retry`` (unwrapping :class:`~google.api_core.exceptions.RetryError`
+causes). Retrying a failed job submits a new server-side job with a new job ID.
+Automatic job retry is disabled when a caller supplies an explicit ``job_id``.
+
+Note:
+    Import ``DEFAULT_JOB_RETRY`` from ``google.cloud.bigquery.retry`` (it is
+    not re-exported on the top-level ``google.cloud.bigquery`` module).
+
+See https://docs.cloud.google.com/bigquery/docs/errors and
+https://docs.cloud.google.com/bigquery/docs/managing-jobs#repeat_jobs.
 """
 
 
