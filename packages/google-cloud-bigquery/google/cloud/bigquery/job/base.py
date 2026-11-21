@@ -62,10 +62,9 @@ def _error_result_to_exception(error_result, errors=None):
     """Maps BigQuery error reasons to an exception.
 
     The reasons and their matching HTTP status codes are documented on
-    the `troubleshooting errors`_ page.
+    the `BigQuery errors`_ page.
 
-    .. _troubleshooting errors: https://cloud.google.com/bigquery\
-        /troubleshooting-errors
+    .. _BigQuery errors: https://docs.cloud.google.com/bigquery/docs/errors
 
     Args:
         error_result (Mapping[str, str]): The error result from BigQuery.
@@ -112,7 +111,7 @@ ReservationUsage.slot_ms.__doc__ = (
 class TransactionInfo(typing.NamedTuple):
     """[Alpha] Information of a multi-statement transaction.
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#TransactionInfo
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#TransactionInfo
 
     .. versionadded:: 2.24.0
     """
@@ -193,12 +192,18 @@ class _JobConfig(object):
     @property
     def job_timeout_ms(self):
         """Optional parameter. Job timeout in milliseconds. If this time limit is exceeded, BigQuery might attempt to stop the job.
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfiguration.FIELDS.job_timeout_ms
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfiguration.FIELDS.job_timeout_ms
         e.g.
 
             job_config = bigquery.QueryJobConfig( job_timeout_ms = 5000 )
             or
             job_config.job_timeout_ms = 5000
+
+        Note:
+            This sets a server-side execution time limit enforced by BigQuery,
+            distinct from client-side polling and HTTP ``timeout`` parameters on
+            :meth:`~google.cloud.bigquery.job.QueryJob.result` or
+            :meth:`~google.cloud.bigquery.job.base._AsyncJob.result`.
 
         Raises:
             ValueError: If ``value`` type is invalid.
@@ -465,7 +470,7 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
 
     @property
     def configuration(self) -> _JobConfig:
-        """Job-type specific configurtion."""
+        """Job-type specific configuration."""
         configuration: _JobConfig = self._CONFIG_CLASS()  # pytype: disable=not-callable
         configuration._properties = self._properties.setdefault("configuration", {})
         return configuration
@@ -480,7 +485,7 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
         """Return the ID of the parent job.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics.FIELDS.parent_job_id
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics.FIELDS.parent_job_id
 
         Returns:
             Optional[str]: parent job id.
@@ -515,7 +520,7 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
         """The number of child jobs executed.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics.FIELDS.num_child_jobs
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics.FIELDS.num_child_jobs
 
         Returns:
             int
@@ -555,7 +560,7 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
         Args:
             client (Optional[google.cloud.bigquery.client.Client]):
                 the client to use.  If not passed, falls back to the
-                ``client`` stored on the current dataset.
+                ``client`` stored on the current job.
 
         Returns:
             google.cloud.bigquery.client.Client:
@@ -611,7 +616,7 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
         """E-mail address of user who submitted the job.
 
         Returns:
-            Optional[str]: the URL (None until set from the server).
+            Optional[str]: the e-mail address (None until set from the server).
         """
         return self._properties.get("user_email")
 
@@ -696,9 +701,16 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
         """Output only. Final error result of the job.
 
         If present, indicates that the job has completed and was unsuccessful.
+        Non-blocking inspection via
+        :meth:`~google.cloud.bigquery.client.Client.get_job` returns a failed
+        job without raising an exception. Inspect this property (which contains
+        fields such as ``"reason"`` and ``"message"``) to check for failure, or
+        call :meth:`result` to raise a
+        :class:`~google.api_core.exceptions.GoogleAPICallError`.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatus.FIELDS.error_result
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatus.FIELDS.error_result
+        and https://docs.cloud.google.com/bigquery/docs/errors.
 
         Returns:
             Optional[Mapping]: the error information (None until set from the server).
@@ -713,9 +725,11 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
 
         The final message includes the number of errors that caused the process to stop.
         Errors here do not necessarily mean that the job has not completed or was unsuccessful.
+        Unlike :attr:`error_result`, this list can be non-empty on a job that
+        completed with non-fatal warnings or tolerated bad records.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatus.FIELDS.errors
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatus.FIELDS.errors
 
         Returns:
             Optional[List[Mapping]]:
@@ -732,7 +746,7 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
         Valid states include 'PENDING', 'RUNNING', and 'DONE'.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatus.FIELDS.state
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatus.FIELDS.state
 
         Returns:
             Optional[str]:
@@ -797,12 +811,12 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
         """API call:  begin the job via a POST request
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert
 
         Args:
             client (Optional[google.cloud.bigquery.client.Client]):
                 The client to use. If not passed, falls back to the ``client``
-                associated with the job object or``NoneType``
+                associated with the job object or ``NoneType``.
             retry (Optional[google.api_core.retry.Retry]):
                 How to retry the RPC.
             timeout (Optional[float]):
@@ -843,12 +857,12 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
         """API call:  test for the existence of the job via a GET request
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get
 
         Args:
             client (Optional[google.cloud.bigquery.client.Client]):
                 the client to use.  If not passed, falls back to the
-                ``client`` stored on the current dataset.
+                ``client`` stored on the current job.
 
             retry (Optional[google.api_core.retry.Retry]): How to retry the RPC.
             timeout (Optional[float]):
@@ -891,12 +905,12 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
         """API call:  refresh job properties via a GET request.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get
 
         Args:
             client (Optional[google.cloud.bigquery.client.Client]):
                 the client to use.  If not passed, falls back to the
-                ``client`` stored on the current dataset.
+                ``client`` stored on the current job.
 
             retry (Optional[google.api_core.retry.Retry]): How to retry the RPC.
             timeout (Optional[float]):
@@ -923,12 +937,12 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
         """API call:  cancel job via a POST request
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/cancel
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/cancel
 
         Args:
             client (Optional[google.cloud.bigquery.client.Client]):
                 the client to use.  If not passed, falls back to the
-                ``client`` stored on the current dataset.
+                ``client`` stored on the current job.
             retry (Optional[google.api_core.retry.Retry]): How to retry the RPC.
             timeout (Optional[float]):
                 The number of seconds to wait for the underlying HTTP transport
@@ -995,6 +1009,12 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
     ) -> bool:
         """Checks if the job is complete.
 
+        Note:
+            If :attr:`state` is already ``"DONE"``, this method returns ``True``
+            immediately without making an API request, even when ``reload=True``.
+            Otherwise, when ``reload=True``, this method calls :meth:`reload`
+            and updates the job metadata in place.
+
         Args:
             retry (Optional[google.api_core.retry.Retry]):
                 How to retry the RPC. If the job state is ``DONE``, retrying is aborted
@@ -1022,24 +1042,33 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
     ) -> "_AsyncJob":
         """Start the job and wait for it to complete and get the result.
 
+        Note:
+            Timing out raises ``concurrent.futures.TimeoutError`` on the client
+            without cancelling the running job on BigQuery. To bound server-side
+            execution, set
+            :attr:`~google.cloud.bigquery.job.base._JobConfig.job_timeout_ms` or
+            call :meth:`cancel` on timeout.
+
         Args:
             retry (Optional[google.api_core.retry.Retry]):
                 How to retry the RPC. If the job state is ``DONE``, retrying is aborted
                 early, as the job will not change anymore.
             timeout (Optional[float]):
-                The number of seconds to wait for the underlying HTTP transport
-                before using ``retry``.
-                If multiple requests are made under the hood, ``timeout``
-                applies to each individual request.
+                The total number of seconds to wait while polling for the job to
+                complete (also applied as the HTTP transport timeout if the job
+                has not yet started). Individual polling :meth:`reload` requests
+                use ``DEFAULT_GET_JOB_TIMEOUT`` (128 seconds). If ``None``, wait
+                indefinitely.
 
         Returns:
             _AsyncJob: This instance.
 
         Raises:
-            google.cloud.exceptions.GoogleAPICallError:
-                if the job failed.
+            google.api_core.exceptions.GoogleAPICallError:
+                If the job failed. The exception's ``errors`` attribute contains
+                the structured error mapping from :attr:`error_result`.
             concurrent.futures.TimeoutError:
-                if the job did not complete in the given timeout.
+                If the job did not complete in the given timeout.
         """
         if self.state is None:
             self._begin(retry=retry, timeout=timeout)
@@ -1049,12 +1078,13 @@ class _AsyncJob(google.api_core.future.polling.PollingFuture):
     def cancelled(self):
         """Check if the job has been cancelled.
 
-        This always returns False. It's not possible to check if a job was
-        cancelled in the API. This method is here to satisfy the interface
-        for :class:`google.api_core.future.Future`.
+        Returns ``True`` when :attr:`error_result` is populated with
+        ``reason == "stopped"`` (for example, after :meth:`cancel` succeeds and
+        job metadata is refreshed via :meth:`reload` or :meth:`done`), and
+        ``False`` otherwise.
 
         Returns:
-            bool: False
+            bool: ``True`` if the job was cancelled, ``False`` otherwise.
         """
         return (
             self.error_result is not None

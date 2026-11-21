@@ -50,7 +50,7 @@ _PROJECT_PREFIX_PATTERN = re.compile(
 )
 
 # BigQuery sends INTERVAL data in "canonical format"
-# https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#interval_type
+# https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#interval_type
 _INTERVAL_PATTERN = re.compile(
     r"(?P<calendar_sign>-?)(?P<years>\d+)-(?P<months>\d+) "
     r"(?P<days>-?\d+) "
@@ -140,8 +140,8 @@ class CellDataParser:
     """Converter from BigQuery REST resource to Python value for RowIterator and similar classes.
 
     See: "rows" field of
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list and
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults.
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list and
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults.
     """
 
     def to_py(self, resource, field):
@@ -412,7 +412,7 @@ class ScalarQueryParamParser(CellDataParser):
     """Override of CellDataParser to handle the differences in the response from query params.
 
     See: "value" field of
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/QueryParameter#QueryParameterValue
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/QueryParameter#QueryParameterValue
     """
 
     def timestamp_to_py(self, value, field):
@@ -432,7 +432,7 @@ class ScalarQueryParamParser(CellDataParser):
         """
         if _not_null(value, field):
             # Canonical formats for timestamps in BigQuery are flexible. See:
-            # g.co/cloud/bigquery/docs/reference/standard-sql/data-types#timestamp-type
+            # https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#timestamp_type
             # The separator between the date and time can be 'T' or ' '.
             value = value.replace(" ", "T", 1)
             # The UTC timezone may be formatted as Z or +00:00.

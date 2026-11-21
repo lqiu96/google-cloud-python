@@ -36,7 +36,7 @@ class ConnectionProperty:
     """A connection-level property to customize query behavior.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/ConnectionProperty
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/ConnectionProperty
 
     Args:
         key:
@@ -100,7 +100,7 @@ class UDFResource(object):
         value (str): The inline code or resource URI.
 
     See:
-    https://cloud.google.com/bigquery/user-defined-functions#api
+    https://docs.cloud.google.com/bigquery/docs/user-defined-functions
     """
 
     def __init__(self, udf_type, value):
@@ -119,7 +119,7 @@ class UDFResource(object):
 class _AbstractQueryParameterType:
     """Base class for representing query parameter types.
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/QueryParameter#queryparametertype
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/QueryParameter#queryparametertype
     """
 
     @classmethod
@@ -130,7 +130,7 @@ class _AbstractQueryParameterType:
             resource (Dict): JSON mapping of parameter
 
         Returns:
-            google.cloud.bigquery.query.QueryParameterType: Instance
+            google.cloud.bigquery.query._AbstractQueryParameterType: Instance
         """
         raise NotImplementedError
 
@@ -191,7 +191,7 @@ class ScalarQueryParameterType(_AbstractQueryParameterType):
         """Return a copy of the instance with ``name`` set to ``new_name``.
 
         Args:
-            name (Union[str, None]):
+            new_name (Union[str, None]):
                 The new name of the query parameter type. If ``None``, the existing
                 name is cleared.
 
@@ -446,7 +446,7 @@ class RangeQueryParameterType(_AbstractQueryParameterType):
         """Return a copy of the instance with ``name`` set to ``new_name``.
 
         Args:
-            name (Union[str, None]):
+            new_name (Union[str, None]):
                 The new name of the range query parameter type. If ``None``,
                 the existing name is cleared.
 
@@ -513,10 +513,26 @@ class _AbstractQueryParameter(object):
 class ScalarQueryParameter(_AbstractQueryParameter):
     """Named / positional query parameters for scalar values.
 
+    Note:
+        - Omit the leading ``@`` when passing a named parameter (for example,
+          pass ``"foo"`` to match ``@foo`` in SQL). Pass ``name=None`` (or use
+          :meth:`positional`) for positional ``?`` parameters.
+        - Do not mix named and positional parameters in the same query. Table
+          names, column names, and other SQL identifiers cannot be
+          parameterized.
+        - For ``TIMESTAMP`` parameters, naive ``datetime.datetime`` values are
+          treated as UTC and timezone-aware values are converted to UTC. For
+          ``DATETIME`` parameters, timezone-aware ``datetime.datetime`` values
+          are converted to UTC and stripped of timezone info, which can shift
+          the wall-clock time. Pass naive ``datetime.datetime`` (or ISO strings)
+          for ``DATETIME`` parameters.
+        - See https://docs.cloud.google.com/bigquery/docs/parameterized-queries.
+
     Args:
         name:
-            Parameter name, used via ``@foo`` syntax.  If None, the
-            parameter can only be addressed via position (``?``).
+            Parameter name without the leading ``@`` (used via ``@foo`` syntax
+            in SQL). If ``None``, the parameter can only be addressed via
+            position (``?``).
 
         type_:
             Name of parameter type. See
@@ -545,7 +561,7 @@ class ScalarQueryParameter(_AbstractQueryParameter):
     def positional(
         cls, type_: Union[str, ScalarQueryParameterType], value: _SCALAR_VALUE_TYPE
     ) -> "ScalarQueryParameter":
-        """Factory for positional paramater.
+        """Factory for positional parameter.
 
         Args:
             type_:
@@ -631,10 +647,29 @@ class ScalarQueryParameter(_AbstractQueryParameter):
 class ArrayQueryParameter(_AbstractQueryParameter):
     """Named / positional query parameters for array values.
 
+    Note:
+        - Omit the leading ``@`` when passing a named parameter (for example,
+          pass ``"foo"`` to match ``@foo`` in SQL). Pass ``name=None`` (or use
+          :meth:`positional`) for positional ``?`` parameters. Do not mix named
+          and positional parameters in the same query, and do not parameterize
+          table or column identifiers.
+        - Passing an empty ``values`` list (``[]``) maps to ``NULL`` in
+          BigQuery. For an empty array of structs, pass a
+          :class:`StructQueryParameterType` instance as ``array_type`` instead
+          of ``"STRUCT"`` or ``"RECORD"``.
+        - Nested ``ARRAY`` elements (arrays of arrays) are not supported by
+          BigQuery SQL.
+        - For ``TIMESTAMP`` and ``DATETIME`` array elements, naive
+          ``datetime.datetime`` values for ``TIMESTAMP`` are treated as UTC,
+          while timezone-aware values for ``DATETIME`` are converted to UTC and
+          stripped of timezone info.
+        - See https://docs.cloud.google.com/bigquery/docs/parameterized-queries.
+
     Args:
         name (Optional[str]):
-            Parameter name, used via ``@foo`` syntax.  If None, the
-            parameter can only be addressed via position (``?``).
+            Parameter name without the leading ``@`` (used via ``@foo`` syntax
+            in SQL). If ``None``, the parameter can only be addressed via
+            position (``?``).
 
         array_type (Union[str, ScalarQueryParameterType, StructQueryParameterType]):
             The type of array elements. If given as a string, it must be one of
@@ -804,12 +839,24 @@ class ArrayQueryParameter(_AbstractQueryParameter):
 
 
 class StructQueryParameter(_AbstractQueryParameter):
-    """Name / positional query parameters for struct values.
+    """Named / positional query parameters for struct values.
+
+    Note:
+        - Omit the leading ``@`` when passing a named top-level parameter (for
+          example, pass ``"foo"`` to match ``@foo`` in SQL). Pass ``name=None``
+          (or use :meth:`positional`) for positional ``?`` parameters. Do not
+          mix named and positional parameters in the same query, and do not
+          parameterize table or column identifiers.
+        - Sub-parameters inside a struct follow the same ``TIMESTAMP`` and
+          ``DATETIME`` UTC conversion rules as :class:`ScalarQueryParameter` and
+          the same no-nested-array rule as :class:`ArrayQueryParameter`.
+        - See https://docs.cloud.google.com/bigquery/docs/parameterized-queries.
 
     Args:
         name (Optional[str]):
-            Parameter name, used via ``@foo`` syntax.  If None, the
-            parameter can only be addressed via position (``?``).
+            Parameter name without the leading ``@`` (used via ``@foo`` syntax
+            in SQL). If ``None``, the parameter can only be addressed via
+            position (``?``).
 
         sub_params (Union[Tuple[
             google.cloud.bigquery.query.ScalarQueryParameter,
@@ -934,7 +981,7 @@ class StructQueryParameter(_AbstractQueryParameter):
         Used to compute this instance's hashcode and evaluate equality.
 
         Returns:
-            Tuple: The contents of this :class:`~google.cloud.bigquery.ArrayQueryParameter`.
+            Tuple: The contents of this :class:`~google.cloud.bigquery.query.StructQueryParameter`.
         """
         return (self.name, self.struct_types, self.struct_values)
 
@@ -953,22 +1000,42 @@ class StructQueryParameter(_AbstractQueryParameter):
 class RangeQueryParameter(_AbstractQueryParameter):
     """Named / positional query parameters for range values.
 
+    Note:
+        - Unlike :class:`ScalarQueryParameter`, :class:`ArrayQueryParameter`,
+          and :class:`StructQueryParameter` (which take ``name`` first),
+          ``RangeQueryParameter`` places ``name`` last:
+          ``RangeQueryParameter(range_element_type, start=None, end=None, name=None)``.
+        - Omit the leading ``@`` when passing a named parameter (for example,
+          pass ``"foo"`` to match ``@foo`` in SQL). Pass ``name=None`` (or use
+          :meth:`positional`) for positional ``?`` parameters. Do not mix named
+          and positional parameters in the same query, and do not parameterize
+          table or column identifiers.
+        - Pass ``None``, ``str``, ``datetime.date``, or ``datetime.datetime``
+          for ``start`` and ``end`` (do not pass :class:`ScalarQueryParameter`).
+          For ``TIMESTAMP`` and ``DATETIME`` bounds, naive ``TIMESTAMP`` values
+          are treated as UTC, while timezone-aware ``DATETIME`` values are
+          converted to UTC and stripped of timezone info.
+        - See https://docs.cloud.google.com/bigquery/docs/parameterized-queries.
+
     Args:
         range_element_type (Union[str, RangeQueryParameterType]):
             The type of range elements. It must be one of 'TIMESTAMP',
             'DATE', or 'DATETIME'.
 
-        start (Optional[Union[ScalarQueryParameter, str]]):
-            The start of the range value. Must be the same type as
-            range_element_type. If not provided, it's interpreted as UNBOUNDED.
+        start (Optional[Union[str, datetime.date, datetime.datetime]]):
+            The start of the range value. Must match ``range_element_type``
+            (not a :class:`ScalarQueryParameter`). If ``None``, it is
+            interpreted as ``UNBOUNDED``.
 
-        end (Optional[Union[ScalarQueryParameter, str]]):
-            The end of the range value. Must be the same type as
-            range_element_type. If not provided, it's interpreted as UNBOUNDED.
+        end (Optional[Union[str, datetime.date, datetime.datetime]]):
+            The end of the range value. Must match ``range_element_type`` (not
+            a :class:`ScalarQueryParameter`). If ``None``, it is interpreted as
+            ``UNBOUNDED``.
 
         name (Optional[str]):
-            Parameter name, used via ``@foo`` syntax.  If None, the
-            parameter can only be addressed via position (``?``).
+            Parameter name without the leading ``@`` (used via ``@foo`` syntax
+            in SQL). If ``None``, the parameter can only be addressed via
+            position (``?``).
     """
 
     @classmethod
@@ -1034,15 +1101,15 @@ class RangeQueryParameter(_AbstractQueryParameter):
                 The type of range elements. It must be one of `'TIMESTAMP'`,
                 `'DATE'`, or `'DATETIME'`.
 
-            start (Optional[Union[ScalarQueryParameter, str]]):
-                The start of the range value. Must be the same type as
-                range_element_type. If not provided, it's interpreted as
-                UNBOUNDED.
+            start (Optional[Union[str, datetime.date, datetime.datetime]]):
+                The start of the range value. Must match ``range_element_type``
+                (not a :class:`ScalarQueryParameter`). If ``None``, it is
+                interpreted as ``UNBOUNDED``.
 
-            end (Optional[Union[ScalarQueryParameter, str]]):
-                The end of the range value. Must be the same type as
-                range_element_type. If not provided, it's interpreted as
-                UNBOUNDED.
+            end (Optional[Union[str, datetime.date, datetime.datetime]]):
+                The end of the range value. Must match ``range_element_type``
+                (not a :class:`ScalarQueryParameter`). If ``None``, it is
+                interpreted as ``UNBOUNDED``.
 
         Returns:
             google.cloud.bigquery.query.RangeQueryParameter: Instance without
@@ -1147,7 +1214,7 @@ class _QueryResults(object):
     """Results of a query.
 
     See:
-    https://g.co/cloud/bigquery/docs/reference/rest/v2/jobs/getQueryResults
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults
     """
 
     def __init__(self, properties):
@@ -1172,7 +1239,7 @@ class _QueryResults(object):
         """Query results served from cache.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.cache_hit
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.cache_hit
 
         Returns:
             Optional[bool]:
@@ -1186,7 +1253,7 @@ class _QueryResults(object):
         """Server completed query.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.job_complete
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.job_complete
 
         Returns:
             Optional[bool]:
@@ -1200,7 +1267,7 @@ class _QueryResults(object):
         """Errors generated by the query.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.errors
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.errors
 
         Returns:
             Optional[List[Mapping]]:
@@ -1214,7 +1281,7 @@ class _QueryResults(object):
         """Job ID of the query job these results are from.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.job_reference
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.job_reference
 
         Returns:
             str: Job ID of the query job.
@@ -1226,11 +1293,11 @@ class _QueryResults(object):
         """Location of the query job these results are from.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.job_reference
-        or https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.location
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.job_reference
+        or https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.location
 
         Returns:
-            str: Job ID of the query job.
+            Optional[str]: Location of the query job.
         """
         location = self._properties.get("jobReference", {}).get("location")
 
@@ -1250,10 +1317,10 @@ class _QueryResults(object):
 
     @property
     def page_token(self):
-        """Token for fetching next bach of results.
+        """Token for fetching next batch of results.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.page_token
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.page_token
 
         Returns:
             Optional[str]: Token generated on the server (None until set by the server).
@@ -1265,7 +1332,7 @@ class _QueryResults(object):
         """Total number of rows returned by the query.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.total_rows
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.total_rows
 
         Returns:
             Optional[int]: Count generated on the server (None until set by the server).
@@ -1279,7 +1346,7 @@ class _QueryResults(object):
         """Total number of bytes processed by the query.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.total_bytes_processed
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.total_bytes_processed
 
         Returns:
             Optional[int]: Count generated on the server (None until set by the server).
@@ -1293,7 +1360,7 @@ class _QueryResults(object):
         """Total number of slot ms the user is actually billed for.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.total_slot_ms
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.total_slot_ms
 
         Returns:
             Optional[int]: Count generated on the server (None until set by the server).
@@ -1307,7 +1374,7 @@ class _QueryResults(object):
         """Total number of rows affected by a DML query.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.num_dml_affected_rows
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.num_dml_affected_rows
 
         Returns:
             Optional[int]: Count generated on the server (None until set by the server).
@@ -1321,7 +1388,7 @@ class _QueryResults(object):
         """Creation time of this query.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.creation_time
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.creation_time
 
         Returns:
             Optional[datetime.datetime]:
@@ -1339,7 +1406,7 @@ class _QueryResults(object):
         PENDING state to either RUNNING or DONE.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.start_time
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.start_time
 
         Returns:
             Optional[datetime.datetime]:
@@ -1356,7 +1423,7 @@ class _QueryResults(object):
         This field will be present whenever a query is in the DONE state.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.end_time
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.end_time
 
         Returns:
             Optional[datetime.datetime]:
@@ -1371,7 +1438,7 @@ class _QueryResults(object):
         """Query results.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.rows
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.rows
 
         Returns:
             Optional[List[google.cloud.bigquery.table.Row]]:
@@ -1384,7 +1451,7 @@ class _QueryResults(object):
         """Schema for query results.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.schema
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.schema
 
         Returns:
             Optional[List[SchemaField]]:

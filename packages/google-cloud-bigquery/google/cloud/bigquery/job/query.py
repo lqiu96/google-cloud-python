@@ -133,7 +133,7 @@ def _to_api_repr_table_defs(value):
 class BiEngineReason(typing.NamedTuple):
     """Reason for BI Engine acceleration failure
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#bienginereason
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#bienginereason
     """
 
     code: str = "CODE_UNSPECIFIED"
@@ -148,7 +148,7 @@ class BiEngineReason(typing.NamedTuple):
 class BiEngineStats(typing.NamedTuple):
     """Statistics for a BI Engine query
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#bienginestatistics
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#bienginestatistics
     """
 
     mode: str = "ACCELERATION_MODE_UNSPECIFIED"
@@ -171,7 +171,7 @@ class BiEngineStats(typing.NamedTuple):
 class DmlStats(typing.NamedTuple):
     """Detailed statistics for DML statements.
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/DmlStats
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/DmlStats
     """
 
     inserted_row_count: int = 0
@@ -260,7 +260,7 @@ class IncrementalResultStats:
 class IndexUnusedReason(typing.NamedTuple):
     """Reason about why no search index was used in the search query (or sub-query).
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#indexunusedreason
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#indexunusedreason
     """
 
     code: Optional[str] = None
@@ -291,7 +291,7 @@ class IndexUnusedReason(typing.NamedTuple):
 class SearchStats(typing.NamedTuple):
     """Statistics related to Search Queries. Populated as part of JobStatistics2.
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#searchstatistics
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#searchstatistics
     """
 
     mode: Optional[str] = None
@@ -313,7 +313,7 @@ class SearchStats(typing.NamedTuple):
 class ScriptOptions:
     """Options controlling the execution of scripts.
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#ScriptOptions
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#ScriptOptions
     """
 
     def __init__(
@@ -404,7 +404,7 @@ class QueryJobConfig(_JobConfig):
         if using default encryption.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.destination_encryption_configuration
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.destination_encryption_configuration
         """
         prop = self._get_sub_prop("destinationEncryptionConfiguration")
         if prop is not None:
@@ -423,7 +423,7 @@ class QueryJobConfig(_JobConfig):
         """bool: Allow large query results tables (legacy SQL, only)
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.allow_large_results
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.allow_large_results
         """
         return self._get_sub_prop("allowLargeResults")
 
@@ -436,7 +436,7 @@ class QueryJobConfig(_JobConfig):
         """Connection properties.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.connection_properties
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.connection_properties
 
         .. versionadded:: 2.29.0
         """
@@ -456,7 +456,7 @@ class QueryJobConfig(_JobConfig):
         for creating tables.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.create_disposition
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.create_disposition
         """
         return self._get_sub_prop("createDisposition")
 
@@ -475,7 +475,7 @@ class QueryJobConfig(_JobConfig):
         otherwise runs query in non-session mode.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.create_session
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.create_session
 
         .. versionadded:: 2.29.0
         """
@@ -500,7 +500,7 @@ class QueryJobConfig(_JobConfig):
           separated by ``.``. For example: ``your-project.your_dataset``.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.default_dataset
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.default_dataset
         """
         prop = self._get_sub_prop("defaultDataset")
         if prop is not None:
@@ -539,10 +539,10 @@ class QueryJobConfig(_JobConfig):
         .. note::
 
             Only table ID is passed to the backend, so any configuration
-            in `~google.cloud.bigquery.table.Table` is discarded.
+            in :class:`~google.cloud.bigquery.table.Table` is discarded.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.destination_table
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.destination_table
         """
         prop = self._get_sub_prop("destinationTable")
         if prop is not None:
@@ -564,8 +564,19 @@ class QueryJobConfig(_JobConfig):
         """bool: :data:`True` if this query should be a dry run to estimate
         costs.
 
+        Note:
+            When ``dry_run=True``,
+            :meth:`~google.cloud.bigquery.job.QueryJob.result` returns an empty
+            iterator immediately without making another API call, and
+            :attr:`~google.cloud.bigquery.job.QueryJob.total_bytes_processed`
+            and :attr:`~google.cloud.bigquery.job.QueryJob.schema` are populated
+            from the initial response. However, if any queried table enforces
+            Row-Level Security (row access policies), BigQuery masks
+            ``total_bytes_processed`` to ``0``. Do not treat ``0`` as a
+            zero-cost guarantee on RLS-protected tables.
+
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfiguration.FIELDS.dry_run
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfiguration.FIELDS.dry_run
         """
         return self._properties.get("dryRun")
 
@@ -578,7 +589,7 @@ class QueryJobConfig(_JobConfig):
         """bool: Flatten nested/repeated fields in results. (Legacy SQL only)
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.flatten_results
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.flatten_results
         """
         return self._get_sub_prop("flattenResults")
 
@@ -592,7 +603,7 @@ class QueryJobConfig(_JobConfig):
         queries.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.maximum_billing_tier
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.maximum_billing_tier
         """
         return self._get_sub_prop("maximumBillingTier")
 
@@ -605,7 +616,7 @@ class QueryJobConfig(_JobConfig):
         """int: Maximum bytes to be billed for this job or :data:`None` if not set.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.maximum_bytes_billed
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.maximum_bytes_billed
         """
         return _helpers._int_or_none(self._get_sub_prop("maximumBytesBilled"))
 
@@ -618,7 +629,7 @@ class QueryJobConfig(_JobConfig):
         """google.cloud.bigquery.job.QueryPriority: Priority of the query.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.priority
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.priority
         """
         return self._get_sub_prop("priority")
 
@@ -629,12 +640,26 @@ class QueryJobConfig(_JobConfig):
     @property
     def query_parameters(self):
         """List[Union[google.cloud.bigquery.query.ArrayQueryParameter, \
+        google.cloud.bigquery.query.RangeQueryParameter, \
         google.cloud.bigquery.query.ScalarQueryParameter, \
         google.cloud.bigquery.query.StructQueryParameter]]: list of parameters
-        for parameterized query (empty by default)
+        for parameterized query (empty by default).
+
+        Note:
+            - Omit the leading ``@`` in named parameter names (for example, pass
+              ``"corpus"`` for ``@corpus`` in SQL). Pass ``name=None`` (or use
+              ``.positional(...)``) for positional ``?`` parameters.
+            - Do not mix named and positional parameters in the same query.
+              Parameter mode (``NAMED`` or ``POSITIONAL``) is inferred solely
+              from the first entry in ``query_parameters``.
+            - Table names, column names, and other SQL identifiers cannot be
+              parameterized.
+            - See :mod:`google.cloud.bigquery.query` and
+              https://docs.cloud.google.com/bigquery/docs/parameterized-queries
+              for empty array, struct, timezone, and range parameter rules.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.query_parameters
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.query_parameters
         """
         prop = self._get_sub_prop("queryParameters", default=[])
         return _from_api_repr_query_parameters(prop)
@@ -653,8 +678,8 @@ class QueryJobConfig(_JobConfig):
             pre-release state and might change or have limited support.
 
         Only specify at most one of
-        :attr:`~google.cloud.bigquery.job.LoadJobConfig.time_partitioning` or
-        :attr:`~google.cloud.bigquery.job.LoadJobConfig.range_partitioning`.
+        :attr:`~google.cloud.bigquery.job.QueryJobConfig.time_partitioning` or
+        :attr:`~google.cloud.bigquery.job.QueryJobConfig.range_partitioning`.
 
         Raises:
             ValueError:
@@ -683,7 +708,7 @@ class QueryJobConfig(_JobConfig):
         defined function resources (empty by default)
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.user_defined_function_resources
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.user_defined_function_resources
         """
         prop = self._get_sub_prop("userDefinedFunctionResources", default=[])
         return _from_api_repr_udf_resources(prop)
@@ -698,8 +723,13 @@ class QueryJobConfig(_JobConfig):
     def use_legacy_sql(self):
         """bool: Use legacy SQL syntax.
 
+        Note:
+            In Python, :class:`~google.cloud.bigquery.job.QueryJob` defaults
+            ``use_legacy_sql`` to ``False`` (GoogleSQL / Standard SQL), unlike
+            the raw BigQuery REST API default of ``True``.
+
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.use_legacy_sql
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.use_legacy_sql
         """
         return self._get_sub_prop("useLegacySql")
 
@@ -712,7 +742,7 @@ class QueryJobConfig(_JobConfig):
         """bool: Look for the query result in the cache.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.use_query_cache
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.use_query_cache
         """
         return self._get_sub_prop("useQueryCache")
 
@@ -726,7 +756,7 @@ class QueryJobConfig(_JobConfig):
         the destination table already exists.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.write_disposition
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.write_disposition
         """
         return self._get_sub_prop("writeDisposition")
 
@@ -755,7 +785,7 @@ class QueryJobConfig(_JobConfig):
         Definitions for external tables or :data:`None` if not set.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.external_table_definitions
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.external_table_definitions
         """
         prop = self._get_sub_prop("tableDefinitions")
         if prop is not None:
@@ -772,14 +802,8 @@ class QueryJobConfig(_JobConfig):
         time-based partitioning for the destination table.
 
         Only specify at most one of
-        :attr:`~google.cloud.bigquery.job.LoadJobConfig.time_partitioning` or
-        :attr:`~google.cloud.bigquery.job.LoadJobConfig.range_partitioning`.
-
-        Raises:
-            ValueError:
-                If the value is not
-                :class:`~google.cloud.bigquery.table.TimePartitioning` or
-                :data:`None`.
+        :attr:`~google.cloud.bigquery.job.QueryJobConfig.time_partitioning` or
+        :attr:`~google.cloud.bigquery.job.QueryJobConfig.range_partitioning`.
         """
         prop = self._get_sub_prop("timePartitioning")
         if prop is not None:
@@ -837,7 +861,7 @@ class QueryJobConfig(_JobConfig):
     def script_options(self) -> ScriptOptions:
         """Options controlling the execution of scripts.
 
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#scriptoptions
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#scriptoptions
         """
         prop = self._get_sub_prop("scriptOptions")
         if prop is not None:
@@ -870,6 +894,15 @@ class QueryJobConfig(_JobConfig):
 
 class QueryJob(_AsyncJob):
     """Asynchronous job: query tables.
+
+    Note:
+        Inspect :attr:`state`, :attr:`error_result`, and :attr:`errors` (via
+        :meth:`done` or :meth:`reload`) for non-blocking status checks, or call
+        :meth:`result` to wait for completion and raise
+        :class:`~google.api_core.exceptions.GoogleAPICallError` on failure. If
+        automatic ``job_retry`` restarts a failed job during :meth:`result`,
+        this instance and its :attr:`job_id` are updated in place to the newly
+        submitted job.
 
     Args:
         job_id (str): the job's ID, within the project belonging to ``client``.
@@ -1003,7 +1036,7 @@ class QueryJob(_AsyncJob):
         """str: The query text used in this query job.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.query
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery.FIELDS.query
         """
         return _helpers._get_sub_prop(
             self._properties, ["configuration", "query", "query"]
@@ -1139,7 +1172,7 @@ class QueryJob(_AsyncJob):
         """Return query plan from job statistics, if present.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.query_plan
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.query_plan
 
         Returns:
             List[google.cloud.bigquery.job.QueryPlanEntry]:
@@ -1173,8 +1206,14 @@ class QueryJob(_AsyncJob):
     def total_bytes_processed(self):
         """Return total bytes processed from job statistics, if present.
 
+        Note:
+            For dry-run queries (``dry_run=True``), if any queried table
+            enforces Row-Level Security (row access policies), BigQuery masks
+            ``total_bytes_processed`` to ``0``. Do not treat ``0`` as a
+            zero-cost guarantee on RLS-protected tables.
+
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.total_bytes_processed
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.total_bytes_processed
 
         Returns:
             Optional[int]:
@@ -1191,11 +1230,11 @@ class QueryJob(_AsyncJob):
         """Return total bytes billed from job statistics, if present.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.total_bytes_billed
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.total_bytes_billed
 
         Returns:
             Optional[int]:
-                Total bytes processed by the job, or None if job is not
+                Total bytes billed by the job, or None if job is not
                 yet complete.
         """
         result = self._job_statistics().get("totalBytesBilled")
@@ -1208,7 +1247,7 @@ class QueryJob(_AsyncJob):
         """Return billing tier from job statistics, if present.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.billing_tier
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.billing_tier
 
         Returns:
             Optional[int]:
@@ -1222,7 +1261,7 @@ class QueryJob(_AsyncJob):
         """Return whether or not query results were served from cache.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.cache_hit
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.cache_hit
 
         Returns:
             Optional[bool]:
@@ -1236,7 +1275,7 @@ class QueryJob(_AsyncJob):
         """Optional[str]: Return the DDL operation performed.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.ddl_operation_performed
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.ddl_operation_performed
 
         """
         return self._job_statistics().get("ddlOperationPerformed")
@@ -1247,7 +1286,7 @@ class QueryJob(_AsyncJob):
             for CREATE/DROP FUNCTION/PROCEDURE  queries.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.ddl_target_routine
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.ddl_target_routine
         """
         prop = self._job_statistics().get("ddlTargetRoutine")
         if prop is not None:
@@ -1260,7 +1299,7 @@ class QueryJob(_AsyncJob):
             for CREATE/DROP TABLE/VIEW queries.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.ddl_target_table
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.ddl_target_table
         """
         prop = self._job_statistics().get("ddlTargetTable")
         if prop is not None:
@@ -1272,7 +1311,7 @@ class QueryJob(_AsyncJob):
         """Return the number of DML rows affected by the job.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.num_dml_affected_rows
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.num_dml_affected_rows
 
         Returns:
             Optional[int]:
@@ -1294,7 +1333,7 @@ class QueryJob(_AsyncJob):
         """Return statement type from job statistics, if present.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.statement_type
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.statement_type
 
         Returns:
             Optional[str]:
@@ -1308,12 +1347,12 @@ class QueryJob(_AsyncJob):
         """Return referenced tables from job statistics, if present.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.referenced_tables
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.referenced_tables
 
         Returns:
-            List[Dict]:
-                mappings describing the query plan, or an empty list
-                if the query has not yet completed.
+            List[google.cloud.bigquery.table.TableReference]:
+                Table references for tables referenced by the query, or an empty
+                list if the query has not yet completed.
         """
         tables = []
         datasets_by_project_name = {}
@@ -1337,7 +1376,7 @@ class QueryJob(_AsyncJob):
         """Return referenced property graphs from job statistics, if present.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.referenced_property_graphs
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.referenced_property_graphs
 
         Returns:
             List[google.cloud.bigquery.table.PropertyGraphReference]:
@@ -1361,7 +1400,7 @@ class QueryJob(_AsyncJob):
         """Return undeclared query parameters from job statistics, if present.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.undeclared_query_parameters
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.undeclared_query_parameters
 
         Returns:
             List[Union[ \
@@ -1394,12 +1433,12 @@ class QueryJob(_AsyncJob):
         """Return the estimated number of bytes processed by the query.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.estimated_bytes_processed
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics2.FIELDS.estimated_bytes_processed
 
         Returns:
             Optional[int]:
-                number of DML rows affected by the job, or None if job is not
-                yet complete.
+                Estimated number of bytes processed by the query, or None if job
+                is not yet complete.
         """
         result = self._job_statistics().get("estimatedBytesProcessed")
         if result is not None:
@@ -1408,6 +1447,12 @@ class QueryJob(_AsyncJob):
 
     @property
     def dml_stats(self) -> Optional[DmlStats]:
+        """Optional[google.cloud.bigquery.job.DmlStats]: Detailed statistics for
+        DML statements, or :data:`None` if not set.
+
+        See:
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/DmlStats
+        """
         stats = self._job_statistics().get("dmlStats")
         if stats is None:
             return None
@@ -1416,6 +1461,12 @@ class QueryJob(_AsyncJob):
 
     @property
     def bi_engine_stats(self) -> Optional[BiEngineStats]:
+        """Optional[google.cloud.bigquery.job.query.BiEngineStats]: Statistics
+        for BI Engine query acceleration, or :data:`None` if not set.
+
+        See:
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#bienginestatistics
+        """
         stats = self._job_statistics().get("biEngineStatistics")
 
         if stats is None:
@@ -1425,6 +1476,9 @@ class QueryJob(_AsyncJob):
 
     @property
     def incremental_result_stats(self) -> Optional[IncrementalResultStats]:
+        """Optional[google.cloud.bigquery.job.IncrementalResultStats]: Statistics
+        for incremental query result execution, or :data:`None` if not set.
+        """
         stats = self._job_statistics().get("incrementalResultStats")
         if stats is None:
             return None
@@ -1469,12 +1523,12 @@ class QueryJob(_AsyncJob):
         """API call:  begin the job via a POST request
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert
 
         Args:
             client (Optional[google.cloud.bigquery.client.Client]):
                 The client to use. If not passed, falls back to the ``client``
-                associated with the job object or``NoneType``.
+                associated with the job object or ``NoneType``.
             retry (Optional[google.api_core.retry.Retry]):
                 How to retry the RPC.
             timeout (Optional[float]):
@@ -1525,7 +1579,7 @@ class QueryJob(_AsyncJob):
         # Since the API to getQueryResults can hang up to the timeout value
         # (default of 10 seconds), set the timeout parameter to ensure that
         # the timeout from the futures API is respected. See:
-        # https://github.com/GoogleCloudPlatform/google-cloud-python/issues/4135
+        # https://github.com/googleapis/google-cloud-python/issues/4135
         timeout_ms = None
 
         # Python_API_core, as part of a major rewrite of the deadline, timeout,
@@ -1577,6 +1631,22 @@ class QueryJob(_AsyncJob):
     ) -> Union["RowIterator", _EmptyRowIterator]:
         """Start the job and wait for it to complete and get the result.
 
+        Note:
+            - Timing out raises ``concurrent.futures.TimeoutError`` on the
+              client without cancelling the running server job. To bound server
+              execution and billing, set
+              :attr:`~google.cloud.bigquery.job.QueryJobConfig.job_timeout_ms`
+              or call :meth:`cancel` on timeout.
+            - When ``job_retry`` restarts a failed query job, a new server-side
+              job is submitted with a new job ID and this ``QueryJob`` instance
+              (including :attr:`job_id`) is updated in place. Automatic job
+              retry is disabled when a custom ``job_id`` was provided to the
+              query that created this job. To retry a failed job manually,
+              submit a new query with a new ``job_id``.
+            - For API error reasons and repeating jobs, see
+              https://docs.cloud.google.com/bigquery/docs/errors and
+              https://docs.cloud.google.com/bigquery/docs/managing-jobs#repeat_jobs.
+
         Args:
             page_size (Optional[int]):
                 The maximum number of rows in each page of results from this
@@ -1584,33 +1654,38 @@ class QueryJob(_AsyncJob):
             max_results (Optional[int]):
                 The maximum total number of rows from this request.
             retry (Optional[google.api_core.retry.Retry]):
-                How to retry the call that retrieves rows.  This only
-                applies to making RPC calls.  It isn't used to retry
-                failed jobs.  This has a reasonable default that
-                should only be overridden with care. If the job state
-                is ``DONE``, retrying is aborted early even if the
-                results are not available, as this will not change
-                anymore.
+                How to retry RPC calls that poll status or retrieve rows. This
+                only applies to RPC calls and does not restart failed jobs.
+                ``DEFAULT_RETRY`` inspects ``exc.errors[0]["reason"]`` before
+                HTTP status codes (retrying transient request reasons such as
+                ``rateLimitExceeded``, ``backendError``, ``internalError``, and
+                ``badGateway``). If the job state is ``DONE``, retrying is
+                aborted early even if the results are not available, as this
+                will not change anymore.
             timeout (Optional[Union[float, \
                 google.api_core.future.polling.PollingFuture._DEFAULT_VALUE, \
             ]]):
-                The number of seconds to wait for the underlying HTTP transport
-                before using ``retry``. If ``None``, wait indefinitely
-                unless an error is returned. If unset, only the
-                underlying API calls have their default timeouts, but we still
-                wait indefinitely for the job to finish.
+                The client-side timeout in seconds governing both the overall
+                wait loop and the per-RPC HTTP transport timeout. Calls to
+                ``jobs.getQueryResults`` enforce a minimum 120-second floor on
+                smaller timeouts. Timing out raises
+                ``concurrent.futures.TimeoutError`` and does not cancel the
+                running server job. If ``None`` or unset, wait indefinitely for
+                the job to finish.
             start_index (Optional[int]):
                 The zero-based index of the starting row to read.
             job_retry (Optional[google.api_core.retry.Retry]):
-                How to retry failed jobs.  The default retries
-                rate-limit-exceeded errors. Passing ``None`` disables
-                job retry.
+                How to retry failed query jobs. ``DEFAULT_JOB_RETRY`` retries
+                transient job execution failures (such as ``jobBackendError``,
+                ``jobInternalError``, and ``jobRateLimitExceeded``) as well as
+                transient request errors by submitting a new job with a new job
+                ID and updating this ``QueryJob`` in place. Passing ``None``
+                disables job retry.
 
-                Not all jobs can be retried.  If ``job_id`` was
-                provided to the query that created this job, then the
-                job returned by the query will not be retryable, and
-                an exception will be raised if non-``None``
-                non-default ``job_retry`` is also provided.
+                Not all jobs can be retried. If a custom ``job_id`` was
+                provided to the query that created this job, automatic job retry
+                is disabled, and a ``TypeError`` is raised if a non-``None``
+                non-default ``job_retry`` is provided.
 
         Returns:
             google.cloud.bigquery.table.RowIterator:
@@ -1621,16 +1696,20 @@ class QueryJob(_AsyncJob):
                 set** (this is distinct from the total number of rows in the
                 current page: ``iterator.page.num_items``).
 
-                If the query is a special query that produces no results, e.g.
-                a DDL query, an ``_EmptyRowIterator`` instance is returned.
+                If the query is a dry run (``dry_run=True``), an
+                ``_EmptyRowIterator`` is returned immediately without an extra
+                API call. If the query produces no results (for example, a DDL
+                query), an ``_EmptyRowIterator`` instance is returned.
 
         Raises:
             google.api_core.exceptions.GoogleAPICallError:
-                If the job failed and retries aren't successful.
+                If the job failed and retries are not successful. The raised
+                exception exposes structured error mappings in ``errors``, plus
+                ``query_job`` and ``debug_message`` attributes.
             concurrent.futures.TimeoutError:
                 If the job did not complete in the given timeout.
             TypeError:
-                If Non-``None`` and non-default ``job_retry`` is
+                If non-``None`` and non-default ``job_retry`` is
                 provided and the job is not retryable.
         """
         # Note: Since waiting for a query job to finish is more complex than
@@ -1731,7 +1810,7 @@ class QueryJob(_AsyncJob):
                         # determine that the job has failed.
                         #
                         # The `jobs.get` REST API
-                        # (https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get)
+                        # (https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get)
                         #  is called via `self.done()` which calls
                         # `self.reload()`.
                         #
@@ -1739,7 +1818,7 @@ class QueryJob(_AsyncJob):
                         # is set from `self.reload()` via
                         # `self._set_properties()`, which translates the
                         # `Job.status.errorResult` field
-                        # (https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatus.FIELDS.error_result)
+                        # (https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatus.FIELDS.error_result)
                         # into an exception that can be processed by the
                         # `job_retry` predicate.
                         restart_query_job = True
@@ -1785,10 +1864,10 @@ class QueryJob(_AsyncJob):
                 # Note: we may need to handle _DEFAULT_VALUE as a separate
                 # case someday, but even then the best we can do for queries
                 # is 72+ hours for hyperparameter tuning jobs:
-                # https://cloud.google.com/bigquery/quotas#query_jobs
+                # https://docs.cloud.google.com/bigquery/quotas#query_jobs
                 #
                 # The timeout for a multi-statement query is 24+ hours. See:
-                # https://cloud.google.com/bigquery/quotas#multi_statement_query_limits
+                # https://docs.cloud.google.com/bigquery/quotas#multi_statement_query_limits
                 remaining_timeout = None
 
             if remaining_timeout is None:
@@ -1887,8 +1966,22 @@ class QueryJob(_AsyncJob):
         max_results: Optional[int] = None,
         timeout: Optional[float] = None,
     ) -> "pyarrow.Table":
-        """[Beta] Create a class:`pyarrow.Table` by loading all pages of a
+        """[Beta] Create a :class:`pyarrow.Table` by loading all pages of a
         table or query.
+
+        Note:
+            - When ``create_bqstorage_client=True`` (default) and
+              ``google-cloud-bigquery-storage`` is installed, downloads use the
+              BigQuery Storage Read API unless results are mostly cached in the
+              first page or ``max_results`` is set. Missing
+              ``bigquery.readsessions.create`` IAM permission raises
+              :class:`~google.api_core.exceptions.PermissionDenied` rather than
+              falling back to REST. Pass ``create_bqstorage_client=False`` to
+              force the REST API.
+            - The BigQuery Storage Read API uses gRPC, which is not safe across
+              ``os.fork()`` and can interact poorly with ``gevent`` monkey
+              patching. Instantiate clients after forking, or pass
+              ``create_bqstorage_client=False``.
 
         Args:
             progress_bar_type (Optional[str]):
@@ -1934,8 +2027,9 @@ class QueryJob(_AsyncJob):
                 .. versionadded:: 2.21.0
 
             timeout (Optional[float]):
-                The number of seconds to wait for the underlying download to complete.
-                If ``None``, wait indefinitely.
+                The number of seconds to wait for the result download to
+                complete. Applies only to downloading results, not to waiting
+                for the query job to finish. If ``None``, wait indefinitely.
 
         Returns:
             pyarrow.Table
@@ -1946,6 +2040,9 @@ class QueryJob(_AsyncJob):
         Raises:
             ValueError:
                 If the :mod:`pyarrow` library cannot be imported.
+            google.api_core.exceptions.PermissionDenied:
+                If the BigQuery Storage Read API is used and the caller lacks
+                ``bigquery.readsessions.create`` permission.
 
         .. versionadded:: 1.17.0
         """
@@ -1985,7 +2082,25 @@ class QueryJob(_AsyncJob):
         ] = DefaultPandasDTypes.RANGE_TIMESTAMP_DTYPE,
         timeout: Optional[float] = None,
     ) -> "pandas.DataFrame":
-        """Return a pandas DataFrame from a QueryJob
+        """Return a pandas DataFrame from a QueryJob.
+
+        Note:
+            - Delegates to
+              :meth:`~google.cloud.bigquery.table.RowIterator.to_dataframe`,
+              which emits a ``PendingDeprecationWarning`` recommending
+              ``pandas_gbq.read_gbq()``.
+            - When ``create_bqstorage_client=True`` (default) and
+              ``google-cloud-bigquery-storage`` is installed, downloads use the
+              BigQuery Storage Read API unless results are mostly cached in the
+              first page or ``max_results`` is set. Missing
+              ``bigquery.readsessions.create`` IAM permission raises
+              :class:`~google.api_core.exceptions.PermissionDenied` rather than
+              falling back to REST. Pass ``create_bqstorage_client=False`` to
+              force the REST API.
+            - The BigQuery Storage Read API uses gRPC, which is not safe across
+              ``os.fork()`` and can interact poorly with ``gevent`` monkey
+              patching. Instantiate clients after forking, or pass
+              ``create_bqstorage_client=False``.
 
         Args:
             bqstorage_client (Optional[google.cloud.bigquery_storage_v1.BigQueryReadClient]):
@@ -1993,7 +2108,7 @@ class QueryJob(_AsyncJob):
                 BigQuery Storage API to fetch rows from BigQuery. This
                 API is a billable API.
 
-                This method requires the ``fastavro`` and
+                This method requires the ``pyarrow`` and
                 ``google-cloud-bigquery-storage`` libraries.
 
                 Reading from a specific partition or snapshot is not
@@ -2042,7 +2157,7 @@ class QueryJob(_AsyncJob):
                 ``pandas.BooleanDtype()``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("bool")``. BigQuery Boolean
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#boolean_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#boolean_type
 
                 .. versionadded:: 3.8.0
 
@@ -2052,7 +2167,7 @@ class QueryJob(_AsyncJob):
                 ``pandas.Int64Dtype()``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("int64")``. A list of BigQuery
                 Integer types can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#integer_types
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#integer_types
 
                 .. versionadded:: 3.8.0
 
@@ -2062,7 +2177,7 @@ class QueryJob(_AsyncJob):
                 ``numpy.dtype("float64")``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("float64")``. BigQuery Float
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
 
                 .. versionadded:: 3.8.0
 
@@ -2072,7 +2187,7 @@ class QueryJob(_AsyncJob):
                 ``numpy.dtype("object")``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("object")``. BigQuery String
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#string_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#string_type
 
                 .. versionadded:: 3.8.0
 
@@ -2083,18 +2198,18 @@ class QueryJob(_AsyncJob):
                 If you explicitly set the value to ``None``, then the data type will be
                 ``numpy.dtype("datetime64[ns]")`` or ``object`` if out of bound. BigQuery
                 Date type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#date_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#date_type
 
                 .. versionadded:: 3.10.0
 
             datetime_dtype (Optional[pandas.Series.dtype, None]):
                 If set, indicate a pandas ExtensionDtype (e.g.
                 ``pandas.ArrowDtype(pyarrow.timestamp("us"))``) to convert BigQuery Datetime
-                type, instead of relying on the default ``numpy.dtype("datetime64[ns]``.
+                type, instead of relying on the default ``numpy.dtype("datetime64[ns]")``.
                 If you explicitly set the value to ``None``, then the data type will be
                 ``numpy.dtype("datetime64[ns]")`` or ``object`` if out of bound. BigQuery
                 Datetime type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#datetime_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#datetime_type
 
                 .. versionadded:: 3.10.0
 
@@ -2104,7 +2219,7 @@ class QueryJob(_AsyncJob):
                 type, instead of relying on the default ``db_dtypes.TimeDtype()``.
                 If you explicitly set the value to ``None``, then the data type will be
                 ``numpy.dtype("object")``. BigQuery Time type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#time_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#time_type
 
                 .. versionadded:: 3.10.0
 
@@ -2114,13 +2229,14 @@ class QueryJob(_AsyncJob):
                 type, instead of relying on the default ``numpy.dtype("datetime64[ns, UTC]")``.
                 If you explicitly set the value to ``None``, then the data type will be
                 ``numpy.dtype("datetime64[ns, UTC]")`` or ``object`` if out of bound. BigQuery
-                Datetime type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#timestamp_type
+                Timestamp type can be found at:
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#timestamp_type
 
                 .. versionadded:: 3.10.0
 
             range_date_dtype (Optional[pandas.Series.dtype, None]):
-                If set, indicate a pandas ExtensionDtype, such as:
+                If set, indicate a pandas ExtensionDtype to convert BigQuery
+                ``RANGE<DATE>`` values instead of relying on the default:
 
                 .. code-block:: python
 
@@ -2128,16 +2244,15 @@ class QueryJob(_AsyncJob):
                         [("start", pyarrow.date32()), ("end", pyarrow.date32())]
                     ))
 
-                to convert BigQuery RANGE<DATE> type, instead of relying on
-                the default ``object``. If you explicitly set the value to
-                ``None``, the data type will be ``object``. BigQuery Range type
-                can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
+                If you explicitly set the value to ``None``, the data type will
+                be ``object``. BigQuery Range type can be found at:
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
 
                 .. versionadded:: 3.21.0
 
             range_datetime_dtype (Optional[pandas.Series.dtype, None]):
-                If set, indicate a pandas ExtensionDtype, such as:
+                If set, indicate a pandas ExtensionDtype to convert BigQuery
+                ``RANGE<DATETIME>`` values instead of relying on the default:
 
                 .. code-block:: python
 
@@ -2148,16 +2263,15 @@ class QueryJob(_AsyncJob):
                         ]
                     ))
 
-                to convert BigQuery RANGE<DATETIME> type, instead of relying on
-                the default ``object``. If you explicitly set the value to
-                ``None``, the data type will be ``object``. BigQuery Range type
-                can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
+                If you explicitly set the value to ``None``, the data type will
+                be ``object``. BigQuery Range type can be found at:
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
 
                 .. versionadded:: 3.21.0
 
             range_timestamp_dtype (Optional[pandas.Series.dtype, None]):
-                If set, indicate a pandas ExtensionDtype, such as:
+                If set, indicate a pandas ExtensionDtype to convert BigQuery
+                ``RANGE<TIMESTAMP>`` values instead of relying on the default:
 
                 .. code-block:: python
 
@@ -2168,17 +2282,16 @@ class QueryJob(_AsyncJob):
                         ]
                     ))
 
-                to convert BigQuery RANGE<TIMESTAMP> type, instead of relying
-                on the default ``object``. If you explicitly set the value to
-                ``None``, the data type will be ``object``. BigQuery Range type
-                can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
+                If you explicitly set the value to ``None``, the data type will
+                be ``object``. BigQuery Range type can be found at:
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
 
                 .. versionadded:: 3.21.0
 
             timeout (Optional[float]):
-                The number of seconds to wait for the underlying download to complete.
-                If ``None``, wait indefinitely.
+                The number of seconds to wait for the result download to
+                complete. Applies only to downloading results, not to waiting
+                for the query job to finish. If ``None``, wait indefinitely.
 
         Returns:
             pandas.DataFrame:
@@ -2194,6 +2307,9 @@ class QueryJob(_AsyncJob):
                 required but cannot be imported.  Also if
                 `geography_as_object` is `True`, but the
                 :mod:`shapely` library cannot be imported.
+            google.api_core.exceptions.PermissionDenied:
+                If the BigQuery Storage Read API is used and the caller lacks
+                ``bigquery.readsessions.create`` permission.
         """
         query_result = wait_for_query(self, progress_bar_type, max_results=max_results)
         return query_result.to_dataframe(
@@ -2233,7 +2349,21 @@ class QueryJob(_AsyncJob):
         string_dtype: Union[Any, None] = None,
         timeout: Optional[float] = None,
     ) -> "geopandas.GeoDataFrame":
-        """Return a GeoPandas GeoDataFrame from a QueryJob
+        """Return a GeoPandas GeoDataFrame from a QueryJob.
+
+        Note:
+            - When ``create_bqstorage_client=True`` (default) and
+              ``google-cloud-bigquery-storage`` is installed, downloads use the
+              BigQuery Storage Read API unless results are mostly cached in the
+              first page or ``max_results`` is set. Missing
+              ``bigquery.readsessions.create`` IAM permission raises
+              :class:`~google.api_core.exceptions.PermissionDenied` rather than
+              falling back to REST. Pass ``create_bqstorage_client=False`` to
+              force the REST API.
+            - The BigQuery Storage Read API uses gRPC, which is not safe across
+              ``os.fork()`` and can interact poorly with ``gevent`` monkey
+              patching. Instantiate clients after forking, or pass
+              ``create_bqstorage_client=False``.
 
         Args:
             bqstorage_client (Optional[google.cloud.bigquery_storage_v1.BigQueryReadClient]):
@@ -2241,7 +2371,7 @@ class QueryJob(_AsyncJob):
                 BigQuery Storage API to fetch rows from BigQuery. This
                 API is a billable API.
 
-                This method requires the ``fastavro`` and
+                This method requires the ``pyarrow`` and
                 ``google-cloud-bigquery-storage`` libraries.
 
                 Reading from a specific partition or snapshot is not
@@ -2280,7 +2410,7 @@ class QueryJob(_AsyncJob):
             geography_column (Optional[str]):
                 If there are more than one GEOGRAPHY column,
                 identifies which one to use to construct a GeoPandas
-                GeoDataFrame.  This option can be ommitted if there's
+                GeoDataFrame.  This option can be omitted if there's
                 only one GEOGRAPHY column.
             bool_dtype (Optional[pandas.Series.dtype, None]):
                 If set, indicate a pandas ExtensionDtype (e.g. ``pandas.BooleanDtype()``)
@@ -2288,31 +2418,32 @@ class QueryJob(_AsyncJob):
                 ``pandas.BooleanDtype()``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("bool")``. BigQuery Boolean
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#boolean_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#boolean_type
             int_dtype (Optional[pandas.Series.dtype, None]):
                 If set, indicate a pandas ExtensionDtype (e.g. ``pandas.Int64Dtype()``)
                 to convert BigQuery Integer types, instead of relying on the default
                 ``pandas.Int64Dtype()``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("int64")``. A list of BigQuery
                 Integer types can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#integer_types
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#integer_types
             float_dtype (Optional[pandas.Series.dtype, None]):
                 If set, indicate a pandas ExtensionDtype (e.g. ``pandas.Float32Dtype()``)
                 to convert BigQuery Float type, instead of relying on the default
                 ``numpy.dtype("float64")``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("float64")``. BigQuery Float
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
             string_dtype (Optional[pandas.Series.dtype, None]):
                 If set, indicate a pandas ExtensionDtype (e.g. ``pandas.StringDtype()``) to
                 convert BigQuery String type, instead of relying on the default
                 ``numpy.dtype("object")``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("object")``. BigQuery String
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#string_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#string_type
             timeout (Optional[float]):
-                The number of seconds to wait for the underlying download to complete.
-                If ``None``, wait indefinitely.
+                The number of seconds to wait for the result download to
+                complete. Applies only to downloading results, not to waiting
+                for the query job to finish. If ``None``, wait indefinitely.
 
         Returns:
             geopandas.GeoDataFrame:
@@ -2326,6 +2457,9 @@ class QueryJob(_AsyncJob):
                If the :mod:`geopandas` library cannot be imported, or the
                 :mod:`google.cloud.bigquery_storage_v1` module is
                 required but cannot be imported.
+            google.api_core.exceptions.PermissionDenied:
+                If the BigQuery Storage Read API is used and the caller lacks
+                ``bigquery.readsessions.create`` permission.
 
         .. versionadded:: 2.24.0
         """
@@ -2382,7 +2516,7 @@ class QueryPlanEntry(object):
     """QueryPlanEntry represents a single stage of a query execution plan.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#ExplainQueryStage
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#ExplainQueryStage
     for the underlying API representation within query statistics.
     """
 
@@ -2510,7 +2644,7 @@ class QueryPlanEntry(object):
     @property
     def read_ratio_max(self):
         """Optional[float]: Ratio of time the slowest worker spent reading
-        to be scheduled, relative to the longest time spent by any worker in
+        input, relative to the longest time spent by any worker in
         any stage of the overall plan.
         """
         return self._properties.get("readRatioMax")
@@ -2625,7 +2759,7 @@ class TimelineEntry(object):
     point in time.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#querytimelinesample
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#querytimelinesample
     for the underlying API representation within query statistics.
     """
 
@@ -2641,7 +2775,7 @@ class TimelineEntry(object):
                 QueryTimelineSample representation returned from API.
 
         Returns:
-            google.cloud.bigquery.TimelineEntry:
+            google.cloud.bigquery.job.TimelineEntry:
                 Timeline sample parsed from ``resource``.
         """
         entry = cls()

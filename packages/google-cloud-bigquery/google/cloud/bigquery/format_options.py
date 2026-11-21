@@ -33,7 +33,7 @@ class AvroOptions:
         INTEGER).
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#AvroOptions.FIELDS.use_avro_logical_types
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#AvroOptions.FIELDS.use_avro_logical_types
         """
         return self._properties.get("useAvroLogicalTypes")
 
@@ -83,7 +83,7 @@ class ParquetOptions:
         BYTES by default.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ParquetOptions.FIELDS.enum_as_string
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#ParquetOptions.FIELDS.enum_as_string
         """
         return self._properties.get("enumAsString")
 
@@ -97,7 +97,7 @@ class ParquetOptions:
         logical type.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ParquetOptions.FIELDS.enable_list_inference
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#ParquetOptions.FIELDS.enable_list_inference
         """
         return self._properties.get("enableListInference")
 
