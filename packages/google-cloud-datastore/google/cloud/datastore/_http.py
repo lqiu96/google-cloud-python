@@ -74,9 +74,9 @@ def _request(
     :param method: The API call method name (ie, ``runQuery``,
                    ``lookup``, etc)
 
-    :type data: str
+    :type data: bytes
     :param data: The data to send with the API call.
-                 Typically this is a serialized Protobuf string.
+                 Typically this is serialized protobuf bytes.
 
     :type base_url: str
     :param base_url: The base URL where the API lives.
@@ -88,13 +88,14 @@ def _request(
     :param database: The database to make the request for.
 
     :type retry: :class:`google.api_core.retry.Retry`
-    :param retry: (Optional) retry policy for the request
+    :param retry: (Optional) retry policy for the request. No default retry is
+                  configured when ``None`` is specified.
 
     :type timeout: float or tuple(float, float)
     :param timeout: (Optional) timeout for the request
 
-    :rtype: str
-    :returns: The string response content from the API call.
+    :rtype: bytes
+    :returns: The raw response content bytes from the API call.
     :raises: :class:`google.cloud.exceptions.GoogleCloudError` if the
              response code is not 200 OK.
     """
@@ -218,6 +219,8 @@ class HTTPDatastoreAPI(object):
     """An API object that sends proto-over-HTTP requests.
 
     Intended to provide the same methods as the GAPIC ``DatastoreClient``.
+    Unlike gRPC transport, HTTP mode configures no default retries on any RPC
+    when ``retry`` is ``None``.
 
     :type client: :class:`~google.cloud.datastore.client.Client`
     :param client: The client that provides configuration.
@@ -229,17 +232,18 @@ class HTTPDatastoreAPI(object):
     def lookup(self, request, retry=None, timeout=None):
         """Perform a ``lookup`` request.
 
-        :type request: :class:`_datastore_pb2.LookupRequest` or dict
+        :type request: :class:`~google.cloud.datastore_v1.types.datastore.LookupRequest` or dict
         :param request:
             Parameter bundle for API request.
 
         :type retry: :class:`google.api_core.retry.Retry`
-        :param retry: (Optional) retry policy for the request
+        :param retry: (Optional) retry policy for the request. No default retry
+                      is configured when ``None`` is specified.
 
         :type timeout: float or tuple(float, float)
         :param timeout: (Optional) timeout for the request
 
-        :rtype: :class:`.datastore_pb2.LookupResponse`
+        :rtype: :class:`~google.cloud.datastore_v1.types.datastore.LookupResponse`
         :returns: The returned protobuf response object.
         """
         request_pb = _make_request_pb(request, _datastore_pb2.LookupRequest)
@@ -262,17 +266,18 @@ class HTTPDatastoreAPI(object):
     def run_query(self, request, retry=None, timeout=None):
         """Perform a ``runQuery`` request.
 
-        :type request: :class:`_datastore_pb2.BeginTransactionRequest` or dict
+        :type request: :class:`~google.cloud.datastore_v1.types.datastore.RunQueryRequest` or dict
         :param request:
             Parameter bundle for API request.
 
         :type retry: :class:`google.api_core.retry.Retry`
-        :param retry: (Optional) retry policy for the request
+        :param retry: (Optional) retry policy for the request. No default retry
+                      is configured when ``None`` is specified.
 
         :type timeout: float or tuple(float, float)
         :param timeout: (Optional) timeout for the request
 
-        :rtype: :class:`.datastore_pb2.RunQueryResponse`
+        :rtype: :class:`~google.cloud.datastore_v1.types.datastore.RunQueryResponse`
         :returns: The returned protobuf response object.
         """
         request_pb = _make_request_pb(request, _datastore_pb2.RunQueryRequest)
@@ -295,17 +300,18 @@ class HTTPDatastoreAPI(object):
     def run_aggregation_query(self, request, retry=None, timeout=None):
         """Perform a ``runAggregationQuery`` request.
 
-        :type request: :class:`_datastore_pb2.BeginTransactionRequest` or dict
+        :type request: :class:`~google.cloud.datastore_v1.types.datastore.RunAggregationQueryRequest` or dict
         :param request:
             Parameter bundle for API request.
 
         :type retry: :class:`google.api_core.retry.Retry`
-        :param retry: (Optional) retry policy for the request
+        :param retry: (Optional) retry policy for the request. No default retry
+                      is configured when ``None`` is specified.
 
         :type timeout: float or tuple(float, float)
         :param timeout: (Optional) timeout for the request
 
-        :rtype: :class:`.datastore_pb2.RunAggregationQueryResponse`
+        :rtype: :class:`~google.cloud.datastore_v1.types.datastore.RunAggregationQueryResponse`
         :returns: The returned protobuf response object.
         """
         request_pb = _make_request_pb(
@@ -330,17 +336,18 @@ class HTTPDatastoreAPI(object):
     def begin_transaction(self, request, retry=None, timeout=None):
         """Perform a ``beginTransaction`` request.
 
-        :type request: :class:`_datastore_pb2.BeginTransactionRequest` or dict
+        :type request: :class:`~google.cloud.datastore_v1.types.datastore.BeginTransactionRequest` or dict
         :param request:
             Parameter bundle for API request.
 
         :type retry: :class:`google.api_core.retry.Retry`
-        :param retry: (Optional) retry policy for the request
+        :param retry: (Optional) retry policy for the request. No default retry
+                      is configured when ``None`` is specified.
 
         :type timeout: float or tuple(float, float)
         :param timeout: (Optional) timeout for the request
 
-        :rtype: :class:`.datastore_pb2.BeginTransactionResponse`
+        :rtype: :class:`~google.cloud.datastore_v1.types.datastore.BeginTransactionResponse`
         :returns: The returned protobuf response object.
         """
         request_pb = _make_request_pb(request, _datastore_pb2.BeginTransactionRequest)
@@ -363,17 +370,18 @@ class HTTPDatastoreAPI(object):
     def commit(self, request, retry=None, timeout=None):
         """Perform a ``commit`` request.
 
-        :type request: :class:`_datastore_pb2.CommitRequest` or dict
+        :type request: :class:`~google.cloud.datastore_v1.types.datastore.CommitRequest` or dict
         :param request:
             Parameter bundle for API request.
 
         :type retry: :class:`google.api_core.retry.Retry`
-        :param retry: (Optional) retry policy for the request
+        :param retry: (Optional) retry policy for the request. No default retry
+                      is configured when ``None`` is specified.
 
         :type timeout: float or tuple(float, float)
         :param timeout: (Optional) timeout for the request
 
-        :rtype: :class:`.datastore_pb2.CommitResponse`
+        :rtype: :class:`~google.cloud.datastore_v1.types.datastore.CommitResponse`
         :returns: The returned protobuf response object.
         """
         request_pb = _make_request_pb(request, _datastore_pb2.CommitRequest)
@@ -396,17 +404,18 @@ class HTTPDatastoreAPI(object):
     def rollback(self, request, retry=None, timeout=None):
         """Perform a ``rollback`` request.
 
-        :type request: :class:`_datastore_pb2.RollbackRequest` or dict
+        :type request: :class:`~google.cloud.datastore_v1.types.datastore.RollbackRequest` or dict
         :param request:
             Parameter bundle for API request.
 
         :type retry: :class:`google.api_core.retry.Retry`
-        :param retry: (Optional) retry policy for the request
+        :param retry: (Optional) retry policy for the request. No default retry
+                      is configured when ``None`` is specified.
 
         :type timeout: float or tuple(float, float)
         :param timeout: (Optional) timeout for the request
 
-        :rtype: :class:`.datastore_pb2.RollbackResponse`
+        :rtype: :class:`~google.cloud.datastore_v1.types.datastore.RollbackResponse`
         :returns: The returned protobuf response object.
         """
         request_pb = _make_request_pb(request, _datastore_pb2.RollbackRequest)
@@ -429,17 +438,18 @@ class HTTPDatastoreAPI(object):
     def allocate_ids(self, request, retry=None, timeout=None):
         """Perform an ``allocateIds`` request.
 
-        :type request: :class:`_datastore_pb2.AllocateIdsRequest` or dict
+        :type request: :class:`~google.cloud.datastore_v1.types.datastore.AllocateIdsRequest` or dict
         :param request:
             Parameter bundle for API request.
 
         :type retry: :class:`google.api_core.retry.Retry`
-        :param retry: (Optional) retry policy for the request
+        :param retry: (Optional) retry policy for the request. No default retry
+                      is configured when ``None`` is specified.
 
         :type timeout: float or tuple(float, float)
         :param timeout: (Optional) timeout for the request
 
-        :rtype: :class:`.datastore_pb2.AllocateIdsResponse`
+        :rtype: :class:`~google.cloud.datastore_v1.types.datastore.AllocateIdsResponse`
         :returns: The returned protobuf response object.
         """
         request_pb = _make_request_pb(request, _datastore_pb2.AllocateIdsRequest)
@@ -460,19 +470,20 @@ class HTTPDatastoreAPI(object):
         )
 
     def reserve_ids(self, request, retry=None, timeout=None):
-        """Perform an ``reserveIds`` request.
+        """Perform a ``reserveIds`` request.
 
-        :type request: :class:`_datastore_pb2.ReserveIdsRequest` or dict
+        :type request: :class:`~google.cloud.datastore_v1.types.datastore.ReserveIdsRequest` or dict
         :param request:
             Parameter bundle for API request.
 
         :type retry: :class:`google.api_core.retry.Retry`
-        :param retry: (Optional) retry policy for the request
+        :param retry: (Optional) retry policy for the request. No default retry
+                      is configured when ``None`` is specified.
 
         :type timeout: float or tuple(float, float)
         :param timeout: (Optional) timeout for the request
 
-        :rtype: :class:`.datastore_pb2.ReserveIdsResponse`
+        :rtype: :class:`~google.cloud.datastore_v1.types.datastore.ReserveIdsResponse`
         :returns: The returned protobuf response object.
         """
         request_pb = _make_request_pb(request, _datastore_pb2.ReserveIdsRequest)

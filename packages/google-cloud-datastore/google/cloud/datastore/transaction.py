@@ -40,6 +40,81 @@ class Transaction(Batch):
     Transactions can be used to build up a bulk mutation and ensure all
     or none succeed (transactionally).
 
+    .. warning::
+
+        Datastore transactions do NOT automatically retry on contention
+        (:class:`~google.api_core.exceptions.Aborted` in gRPC transport or
+        :class:`~google.api_core.exceptions.Conflict` in HTTP transport),
+        unlike ``google-cloud-firestore`` ``@firestore.transactional`` or
+        ``google-cloud-ndb`` ``@ndb.transactional``. Wrap idempotent
+        read-modify-write logic in an application retry loop with exponential
+        backoff, creating a fresh ``client.transaction()`` for each attempt:
+
+        .. code-block:: python
+
+            import time
+            from google.api_core import exceptions
+
+            for attempt in range(5):
+                try:
+                    with client.transaction():
+                        entity = client.get(key)
+                        entity["count"] += 1
+                        client.put(entity)
+                    break
+                except (exceptions.Aborted, exceptions.Conflict):
+                    if attempt == 4:
+                        raise
+                    time.sleep(0.1 * (2**attempt))
+
+    .. note::
+
+        - Entering ``with client.transaction():`` calls :meth:`begin` (unless
+          ``begin_later=True``) and pushes the transaction onto the client's
+          thread-local stack. Inside the block, ``client.get()``,
+          ``client.get_multi()``, ``client.put()``, ``client.put_multi()``,
+          ``client.delete()``, ``client.delete_multi()``, ``query.fetch()``,
+          and ``aggregation_query.fetch()`` attach automatically, commit on
+          normal exit, and roll back on exceptions.
+        - Managing ``txn.begin()`` manually without ``with`` does NOT push the
+          transaction onto the thread-local stack. In that mode,
+          ``client.put()`` and ``client.delete()`` execute immediately outside
+          the transaction unless you call ``txn.put()`` and ``txn.delete()``,
+          reads require passing ``transaction=txn`` explicitly, and
+          ``query.fetch()`` or ``aggregation_query.fetch()`` cannot attach to
+          the transaction.
+        - Avoid nesting ``with client.batch():`` inside
+          ``with client.transaction():``. Pushing a ``Batch`` hides
+          ``client.current_transaction`` (making it ``None``), so
+          ``client.get()`` and ``query.fetch()`` silently run outside the
+          transaction while ``client.put()`` and ``client.delete()`` target the
+          non-transactional batch. Nesting two ``with client.transaction():``
+          blocks creates independent server transactions and risks
+          self-contention.
+        - Queries and aggregation queries are lazy and read
+          ``client.current_transaction`` only when pages are fetched. Exhaust
+          iterators inside the ``with`` block rather than iterating after
+          exiting it.
+        - Writes are buffered client-side, serialized at ``put()`` time, and
+          sent only on :meth:`commit`. Mutating an entity after ``put()`` does
+          not change what is written, and buffered writes are not visible to
+          reads within the same transaction.
+        - ``client.put()`` and ``client.delete()`` ignore ``retry`` and
+          ``timeout`` keyword arguments when called inside
+          ``with client.transaction():``. Context manager exit calls
+          :meth:`commit` with default arguments, so call
+          ``txn.commit(retry=..., timeout=...)`` explicitly if you need custom
+          commit retry or timeout settings.
+        - :meth:`delete` (inherited from
+          :class:`~google.cloud.datastore.batch.Batch`) requires a complete
+          :class:`~google.cloud.datastore.key.Key` and does not accept
+          :class:`~google.cloud.datastore.entity.Entity` instances.
+        - Datastore enforces a maximum of 500 entity mutations per commit.
+          ``begin_transaction``, ``commit``, and ``rollback`` have no default
+          retry policy configured in gRPC or HTTP transport. See
+          https://docs.cloud.google.com/datastore/docs/concepts/transactions
+          and https://docs.cloud.google.com/datastore/docs/concepts/errors.
+
     For example, the following snippet of code will put the two ``save``
     operations (either ``insert`` or ``upsert``) into the same
     mutation, and execute those within a transaction:
@@ -143,20 +218,27 @@ class Transaction(Batch):
     :param client: the client used to connect to datastore.
 
     :type read_only: bool
-    :param read_only: indicates the transaction is read only.
+    :param read_only: indicates the transaction is read only. Calling
+                      :meth:`put` on a read-only transaction raises
+                      :class:`RuntimeError`.
 
     :type read_time: datetime
     :param read_time: (Optional) Time at which the transaction reads entities.
-                      Only allowed when ``read_only=True``. This feature is in private preview.
+                      Only allowed when ``read_only=True``.
 
     :type begin_later: bool
-    :param begin_later: (Optional) If True, the transaction will be started
-                        lazily (i.e. when the first RPC is made). If False,
-                        the transaction will be started as soon as the context manager
-                        is entered. `self.begin()` can also be called manually to begin
-                        the transaction at any time. Default is False.
+    :param begin_later: (Optional) If ``True``, starting the transaction is
+                        deferred until the first ``get`` or ``get_multi`` RPC
+                        (via ``new_transaction`` read options) or until
+                        :meth:`commit` if mutations are queued without reads.
+                        If a ``begin_later=True`` transaction ends with no
+                        reads and no mutations, :meth:`commit` aborts locally
+                        without sending an RPC. If ``False``, the transaction
+                        is started as soon as the context manager is entered.
+                        ``self.begin()`` can also be called manually to begin
+                        the transaction at any time. Default is ``False``.
 
-    :raises: :class:`ValueError` if read_time is specified when
+    :raises: :class:`ValueError` if ``read_time`` is specified when
              ``read_only=False``.
     """
 
@@ -188,8 +270,12 @@ class Transaction(Batch):
     def id(self):
         """Getter for the transaction ID.
 
+        Returns ``bytes`` while the transaction is active. Returns ``None``
+        before :meth:`begin` (or before the first lookup when
+        ``begin_later=True``) and after :meth:`commit` or :meth:`rollback`.
+
         :rtype: bytes or None
-        :returns: The ID of the current transaction, or None if not started.
+        :returns: The ID of the current transaction, or None if not active.
         """
         return self._id
 
@@ -211,16 +297,23 @@ class Transaction(Batch):
     def begin(self, retry=None, timeout=None):
         """Begins a transaction.
 
-        This method is called automatically when entering a with
-        statement, however it can be called explicitly if you don't want
-        to use a context manager. If used outside a context manager,
-        `client.get` calls targeting the transaction and commit/rollback calls
-        will need to be managed explicitly as well.
+        This method is called automatically when entering a ``with``
+        statement (unless ``begin_later=True``), however it can be called
+        explicitly if you do not want to use a context manager. If used
+        outside a context manager, the transaction is not pushed onto the
+        client's thread-local stack, so ``client.get()`` and
+        ``client.get_multi()`` require passing ``transaction=txn`` explicitly,
+        writes must use ``txn.put()`` and ``txn.delete()`` (calling
+        ``client.put()`` or ``client.delete()`` runs outside the transaction),
+        ``query.fetch()`` cannot attach to the transaction, and
+        :meth:`commit` or :meth:`rollback` must be called explicitly.
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            no default retry is configured for ``begin_transaction`` RPCs in
+            gRPC or HTTP transport (requests are sent once without automatic
+            retry).
 
         :type timeout: float
         :param timeout:
@@ -228,8 +321,7 @@ class Transaction(Batch):
             Note that if ``retry`` is specified, the timeout applies
             to each individual attempt.
 
-        :raises: :class:`~exceptions.ValueError` if the transaction has
-                 already begun.
+        :raises: :class:`ValueError` if the transaction has already begun.
         """
         super(Transaction, self).begin()
 
@@ -268,6 +360,10 @@ class Transaction(Batch):
     def rollback(self, retry=None, timeout=None):
         """Rolls back the current transaction.
 
+        This is called automatically when exiting a ``with`` statement with
+        an exception. If the transaction has not started yet (for example,
+        with ``begin_later=True``), it aborts locally without sending an RPC.
+
         This method has necessary side-effects:
 
         - Sets the current transaction's ID to None.
@@ -275,7 +371,8 @@ class Transaction(Batch):
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            no default retry is configured for ``rollback`` RPCs in gRPC or
+            HTTP transport (requests are sent once without automatic retry).
 
         :type timeout: float
         :param timeout:
@@ -308,9 +405,18 @@ class Transaction(Batch):
     def commit(self, retry=None, timeout=None):
         """Commits the transaction.
 
-        This is called automatically upon exiting a with statement,
-        however it can be called explicitly if you don't want to use a
-        context manager.
+        This is called automatically upon exiting a ``with`` statement without
+        an exception (exiting with an exception calls :meth:`rollback`). It
+        can also be called explicitly if you do not want to use a context
+        manager.
+
+        When ``begin_later=True`` and the transaction has not yet started,
+        commits with queued mutations call :meth:`begin` first, while an empty
+        transaction with no reads and no mutations aborts locally without
+        sending an RPC. Contention raises
+        :class:`~google.api_core.exceptions.Aborted` (gRPC) or
+        :class:`~google.api_core.exceptions.Conflict` (HTTP) and is not
+        automatically retried.
 
         This method has necessary side-effects:
 
@@ -319,7 +425,8 @@ class Transaction(Batch):
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            no default retry is configured for ``commit`` RPCs in gRPC or HTTP
+            transport (requests are sent once without automatic retry).
 
         :type timeout: float
         :param timeout:
@@ -347,9 +454,10 @@ class Transaction(Batch):
     def put(self, entity):
         """Adds an entity to be committed.
 
-        Ensures the transaction is not marked readonly.
-        Please see documentation at
-        :meth:`~google.cloud.datastore.batch.Batch.put`
+        Ensures the transaction is not marked read-only. Writes are buffered
+        and serialized at ``put()`` time, are sent only on :meth:`commit`, and
+        are not visible to reads within the same transaction. Please see
+        documentation at :meth:`~google.cloud.datastore.batch.Batch.put`.
 
         :type entity: :class:`~google.cloud.datastore.entity.Entity`
         :param entity: the entity to be saved.

@@ -27,10 +27,19 @@ from google.cloud.datastore_v1.services.datastore.transports import grpc
 def make_datastore_api(client):
     """Create an instance of the GAPIC Datastore API.
 
+    Parses ``client._base_url`` with :func:`urllib.parse.urlparse`. An
+    ``https`` scheme creates a secure gRPC channel targeting the parsed
+    host on port 443, while any other scheme (such as ``http`` for the
+    local emulator) creates an insecure gRPC channel. Custom
+    ``client_options.api_endpoint`` values must therefore include an
+    explicit URL scheme (for example, ``https://datastore.googleapis.com``
+    or ``http://localhost:8081``). Passing a bare hostname without a scheme
+    yields an empty host and an insecure channel.
+
     :type client: :class:`~google.cloud.datastore.client.Client`
     :param client: The client that holds configuration details.
 
-    :rtype: :class:`.datastore.v1.datastore_client.DatastoreClient`
+    :rtype: :class:`google.cloud.datastore_v1.services.datastore.client.DatastoreClient`
     :returns: A datastore API instance with the proper credentials.
     """
     parse_result = urlparse(client._base_url)

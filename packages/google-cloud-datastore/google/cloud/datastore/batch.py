@@ -18,7 +18,7 @@ Batches provide the ability to execute multiple operations
 in a single request to the Cloud Datastore API.
 
 See
-https://cloud.google.com/datastore/docs/concepts/entities#batch_operations
+https://docs.cloud.google.com/datastore/docs/concepts/entities#batch_operations
 """
 
 from google.cloud.datastore import helpers
@@ -29,6 +29,38 @@ class Batch(object):
     """An abstraction representing a collected group of updates / deletes.
 
     Used to build up a bulk mutation.
+
+    .. warning::
+
+        ``Batch`` commits in ``NON_TRANSACTIONAL`` mode and is NOT atomic or
+        isolated across entities (unlike Firestore ``WriteBatch`` or Datastore
+        :class:`~google.cloud.datastore.transaction.Transaction`). Partial
+        writes can persist if another mutation fails, and concurrent writes
+        can interleave. Duplicate mutations for the same key are not
+        deduplicated client-side and fail server-side in ``NON_TRANSACTIONAL``
+        mode. Use :meth:`~google.cloud.datastore.client.Client.transaction`
+        when all-or-nothing atomicity is required.
+
+    .. note::
+
+        - Inside ``with client.batch():``, ``client.put()``,
+          ``client.put_multi()``, ``client.delete()``, and
+          ``client.delete_multi()`` buffer mutations into the batch and send a
+          single commit RPC on normal exit. Exiting with an exception calls
+          :meth:`rollback`, discarding buffered mutations locally without
+          sending an RPC.
+        - :meth:`put` serializes the entity immediately, so modifying the
+          entity after ``put()`` and before ``commit()`` has no effect on what
+          is saved. Partial ``entity.key`` values are mutated in place with
+          server-allocated complete keys only when :meth:`commit` returns.
+        - :meth:`delete` requires a complete
+          :class:`~google.cloud.datastore.key.Key` and does not accept
+          :class:`~google.cloud.datastore.entity.Entity` instances (unlike
+          :meth:`~google.cloud.datastore.client.Client.delete`).
+        - Datastore enforces a maximum of 500 entity mutations per commit.
+        - ``commit`` RPCs have no default retry policy configured in gRPC or
+          HTTP transport. See
+          https://docs.cloud.google.com/datastore/docs/concepts/errors.
 
     For example, the following snippet of code will put the two ``save``
     operations and the ``delete`` operation into the same mutation, and send
@@ -79,7 +111,7 @@ class Batch(object):
           ...
         Exception
 
-    .. testcleanup:: txn
+    .. testcleanup:: batch
 
         with client.batch() as batch:
             batch.delete(client.key('EntityKind', 1234))
@@ -143,7 +175,7 @@ class Batch(object):
     def _add_partial_key_entity_pb(self):
         """Adds a new mutation for an entity with a partial key.
 
-        :rtype: :class:`.entity_pb2.Entity`
+        :rtype: :class:`~google.cloud.datastore_v1.types.entity.Entity`
         :returns: The newly created entity protobuf that will be
                   updated and sent with a commit.
         """
@@ -154,7 +186,7 @@ class Batch(object):
     def _add_complete_key_entity_pb(self):
         """Adds a new mutation for an entity with a completed key.
 
-        :rtype: :class:`.entity_pb2.Entity`
+        :rtype: :class:`~google.cloud.datastore_v1.types.entity.Entity`
         :returns: The newly created entity protobuf that will be
                   updated and sent with a commit.
         """
@@ -168,7 +200,7 @@ class Batch(object):
     def _add_delete_key_pb(self):
         """Adds a new mutation for a key to be deleted.
 
-        :rtype: :class:`.entity_pb2.Key`
+        :rtype: :class:`~google.cloud.datastore_v1.types.entity.Key`
         :returns: The newly created key protobuf that will be
                   deleted when sent with a commit.
         """
@@ -187,7 +219,8 @@ class Batch(object):
         built-up so far.
 
         :rtype: iterable
-        :returns: The list of :class:`.datastore_pb2.Mutation`
+        :returns: The list of
+                  :class:`~google.cloud.datastore_v1.types.datastore.Mutation`
                   protobufs to be sent in the commit request.
         """
         return self._mutations
@@ -210,26 +243,29 @@ class Batch(object):
 
         .. note::
            Any existing properties for the entity will be replaced by those
-           currently set on this instance.  Already-stored properties which do
+           currently set on this instance. Already-stored properties which do
            not correspond to keys set on this instance will be removed from
            the datastore.
 
         .. note::
-           Property values which are "text" ('unicode' in Python2, 'str' in
-           Python3) map to 'string_value' in the datastore;  values which are
-           "bytes" ('str' in Python2, 'bytes' in Python3) map to 'blob_value'.
+           Property values of type ``str`` map to ``string_value`` in the
+           datastore. Values of type ``bytes`` map to ``blob_value``.
+
+        This method serializes ``entity`` immediately into a buffered mutation.
+        Mutating ``entity`` after calling :meth:`put` and before :meth:`commit`
+        has no effect on the data written to Datastore.
 
         When an entity has a partial key, calling :meth:`commit` sends it as
         an ``insert`` mutation and the key is completed. On return,
-        the key for the ``entity`` passed in is updated to match the key ID
-        assigned by the server.
+        the key for the ``entity`` passed in is updated in place to match the
+        key ID assigned by the server.
 
         :type entity: :class:`google.cloud.datastore.entity.Entity`
         :param entity: the entity to be saved.
 
-        :raises: :class:`~exceptions.ValueError` if the batch is not in
-                 progress, if entity has no key assigned, or if the key's
-                 ``project`` does not match ours.
+        :raises: :class:`ValueError` if the batch is not in progress, if
+                 ``entity`` has no key assigned, or if the key's ``project``
+                 or ``database`` does not match ours.
         """
         if not self._allow_mutations():
             raise ValueError("Batch must be in progress to put()")
@@ -254,12 +290,16 @@ class Batch(object):
     def delete(self, key):
         """Remember a key to be deleted during :meth:`commit`.
 
+        Requires a complete :class:`~google.cloud.datastore.key.Key` instance
+        (does not accept :class:`~google.cloud.datastore.entity.Entity`
+        objects, unlike :meth:`~google.cloud.datastore.client.Client.delete`).
+
         :type key: :class:`google.cloud.datastore.key.Key`
         :param key: the key to be deleted.
 
-        :raises: :class:`~exceptions.ValueError` if the batch is not in
-                 progress, if key is not complete, or if the key's
-                 ``project`` does not match ours.
+        :raises: :class:`ValueError` if the batch is not in progress, if
+                 ``key`` is not complete, or if the key's ``project`` or
+                 ``database`` does not match ours.
         """
         if not self._allow_mutations():
             raise ValueError("Batch must be in progress to delete()")
@@ -279,11 +319,13 @@ class Batch(object):
     def begin(self):
         """Begins a batch.
 
-        This method is called automatically when entering a with
-        statement, however it can be called explicitly if you don't want
-        to use a context manager. If used outside a context manager,
-        `client.get` calls targeting the batch and commit/rollback calls
-        will need to be managed explicitly as well
+        This method is called automatically when entering a ``with``
+        statement, however it can be called explicitly if you do not want
+        to use a context manager. If used outside a context manager, the batch
+        is not pushed onto the client's stack, so mutations must be added with
+        ``batch.put()`` and ``batch.delete()`` (calling ``client.put()`` or
+        ``client.delete()`` executes immediately outside this batch), and
+        :meth:`commit` or :meth:`rollback` must be called explicitly.
 
         Overridden by :class:`google.cloud.datastore.transaction.Transaction`.
 
@@ -336,14 +378,20 @@ class Batch(object):
     def commit(self, retry=None, timeout=None):
         """Commits the batch.
 
-        This is called automatically upon exiting a with statement,
-        however it can be called explicitly if you don't want to use a
-        context manager.
+        This is called automatically upon exiting a ``with`` statement without
+        an exception (exiting with an exception calls :meth:`rollback`). It
+        can also be called explicitly if you do not want to use a context
+        manager.
+
+        For :class:`Batch`, this sends a ``NON_TRANSACTIONAL`` commit RPC that
+        is not atomic across entities and supports at most 500 mutations. See
+        https://docs.cloud.google.com/datastore/docs/concepts/errors.
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            no default retry is configured for ``commit`` RPCs in gRPC or HTTP
+            transport (requests are sent once without automatic retry).
 
         :type timeout: float
         :param timeout:
@@ -351,8 +399,7 @@ class Batch(object):
             Note that if ``retry`` is specified, the timeout applies
             to each individual attempt.
 
-        :raises: :class:`~exceptions.ValueError` if the batch is not
-                 in progress.
+        :raises: :class:`ValueError` if the batch is not in progress.
         """
         if self._status != self._IN_PROGRESS:
             raise ValueError("Batch must be in progress to commit()")
@@ -365,16 +412,16 @@ class Batch(object):
     def rollback(self):
         """Rolls back the current batch.
 
-        Marks the batch as aborted (can't be used again).
+        Marks the batch as aborted (it cannot be used again) and discards
+        buffered mutations locally without sending an RPC.
 
-        This is called automatically upon exiting a with statement,
-        however it can be called explicitly if you don't want to use a
-        context manager.
+        This is called automatically only when exiting a ``with`` statement
+        with an exception (normal exit calls :meth:`commit`). It can also be
+        called explicitly if you do not want to use a context manager.
 
         Overridden by :class:`google.cloud.datastore.transaction.Transaction`.
 
-        :raises: :class:`~exceptions.ValueError` if the batch is not
-                 in progress.
+        :raises: :class:`ValueError` if the batch is not in progress.
         """
         if self._status != self._IN_PROGRESS:
             raise ValueError("Batch must be in progress to rollback()")
@@ -404,7 +451,7 @@ def _assign_entity_to_pb(entity_pb, entity):
 
     Helper method for ``Batch.put``.
 
-    :type entity_pb: :class:`.entity_pb2.Entity`
+    :type entity_pb: :class:`~google.cloud.datastore_v1.types.entity.Entity`
     :param entity_pb: The entity owned by a mutation.
 
     :type entity: :class:`google.cloud.datastore.entity.Entity`
@@ -418,13 +465,13 @@ def _assign_entity_to_pb(entity_pb, entity):
 def _parse_commit_response(commit_response):
     """Extract response data from a commit response.
 
-    :type commit_response_pb: :class:`.datastore_pb2.CommitResponse`
-    :param commit_response_pb: The protobuf response from a commit request.
+    :type commit_response: :class:`~google.cloud.datastore_v1.types.datastore.CommitResponse`
+    :param commit_response: The protobuf response from a commit request.
 
     :rtype: tuple
     :returns: The pair of the number of index updates and a list of
-              :class:`.entity_pb2.Key` for each incomplete key
-              that was completed in the commit.
+              :class:`~google.cloud.datastore_v1.types.entity.Key` for each
+              incomplete key that was completed in the commit.
     """
     commit_response_pb = commit_response._pb
     mut_results = commit_response_pb.mutation_results

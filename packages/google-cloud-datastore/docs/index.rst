@@ -19,6 +19,7 @@ API Reference
     keys
     queries
     aggregations
+    query_profile
     transactions
     batches
     helpers

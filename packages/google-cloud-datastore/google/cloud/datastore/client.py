@@ -79,11 +79,15 @@ def _get_gcd_project():
 def _determine_default_project(project=None):
     """Determine default project explicitly or implicitly as fall-back.
 
-    In implicit case, supports four environments. In order of precedence, the
-    implicit environments are:
+    During :class:`Client` initialization, ``GOOGLE_CLOUD_PROJECT`` (or
+    ``GCLOUD_PROJECT``) and ``credentials.project_id`` take precedence before
+    this fallback helper is invoked.
 
-    * DATASTORE_DATASET environment variable (for ``gcd`` / emulator testing)
-    * GOOGLE_CLOUD_PROJECT environment variable
+    When called directly with ``project=None``, this helper checks environments
+    in the following order:
+
+    * ``DATASTORE_DATASET`` environment variable (for emulator testing)
+    * ``GOOGLE_CLOUD_PROJECT`` environment variable
     * Google App Engine application ID
     * Google Compute Engine project ID (from metadata server)
 
@@ -134,14 +138,14 @@ def _extended_lookup(
 
     :type datastore_api:
         :class:`google.cloud.datastore._http.HTTPDatastoreAPI`
-        or :class:`google.cloud.datastore_v1.gapic.DatastoreClient`
+        or :class:`google.cloud.datastore_v1.services.datastore.client.DatastoreClient`
     :param datastore_api: The datastore API object used to connect
                           to datastore.
 
     :type project: str
     :param project: The project to make the request for.
 
-    :type key_pbs: list of :class:`.entity_pb2.Key`
+    :type key_pbs: list of :class:`~google.cloud.datastore_v1.types.entity.Key`
     :param key_pbs: The keys to retrieve from the datastore.
 
     :type missing: list
@@ -158,15 +162,18 @@ def _extended_lookup(
                      consistency.  If True, request ``EVENTUAL`` read
                      consistency.
 
-    :type transaction: Transaction
+    :type transaction: :class:`~google.cloud.datastore.transaction.Transaction`
     :param transaction: If passed, make the request in the scope of
                         the given transaction.  Incompatible with
                         ``eventual==True`` or ``read_time``.
 
     :type retry: :class:`google.api_core.retry.Retry`
     :param retry:
-        A retry object used to retry requests. If ``None`` is specified,
-        requests will be retried using a default configuration.
+        A retry object used to retry requests. In gRPC transport, if ``None``
+        is specified, ``lookup`` requests are retried using the default
+        configuration (on ``DeadlineExceeded`` and ``ServiceUnavailable``).
+        In HTTP transport, no default retry is configured when ``None`` is
+        specified.
 
     :type timeout: float
     :param timeout:
@@ -178,13 +185,12 @@ def _extended_lookup(
     :param read_time:
         (Optional) Read time to use for read consistency. Incompatible with
         ``eventual==True`` or ``transaction``.
-        This feature is in private preview.
 
     :type database: str
     :param database:
         (Optional) Database from which to fetch data. Defaults to the (default) database.
 
-    :rtype: list of :class:`.entity_pb2.Entity`
+    :rtype: list of :class:`~google.cloud.datastore_v1.types.entity.Entity`
     :returns: The requested entities.
     :raises: :class:`ValueError` if missing / deferred are not null or
              empty list.
@@ -245,15 +251,81 @@ def _extended_lookup(
 
 
 class Client(ClientWithProject):
-    """Convenience wrapper for invoking APIs/factories w/ a project.
+    """Synchronous client for Cloud Datastore operations.
+
+    Provides entity CRUD, key factories, queries, aggregations, non-atomic
+    batches, and transactions over gRPC by default using Application Default
+    Credentials.
 
     .. doctest::
 
        >>> from google.cloud import datastore
        >>> client = datastore.Client()
 
+    Lifecycle and concurrency:
+
+    - Reuse a single ``Client`` instance across requests and threads to share
+      the underlying gRPC channel. ``Client`` does not implement context
+      manager methods (``__enter__`` / ``__exit__``).
+    - Active ``with client.transaction():`` and ``with client.batch():``
+      contexts are isolated per thread via a thread-local stack
+      (``_LocalStack``). Individual ``Transaction``, ``Batch``, ``Query``, and
+      ``Iterator`` instances are not thread-safe.
+    - When using ``multiprocessing`` or pre-fork servers, instantiate
+      ``Client`` after ``os.fork()`` because gRPC channels are not fork-safe.
+      ``Client`` instances also cannot be pickled.
+
+    Emulator, transport, and configuration:
+
+    - Set ``DATASTORE_EMULATOR_HOST`` to bare ``host:port`` without an
+      ``http://`` scheme (the client prepends ``http://`` automatically).
+      Passing explicit ``credentials`` while ``DATASTORE_EMULATOR_HOST`` is set
+      raises :class:`ValueError` (anonymous credentials are used
+      automatically). ``DATASTORE_EMULATOR_HOST`` overrides
+      ``client_options.api_endpoint``. The client ignores
+      ``DATASTORE_PROJECT_ID`` (use ``project=``, ``GOOGLE_CLOUD_PROJECT``, or
+      ``DATASTORE_DATASET`` instead).
+    - When ``project`` is omitted, resolution checks ``GOOGLE_CLOUD_PROJECT``
+      (or ``GCLOUD_PROJECT``), then ``credentials.project_id``, and finally
+      ``DATASTORE_DATASET``.
+    - When ``DATASTORE_EMULATOR_HOST`` is unset, ``client_options.api_endpoint``
+      must include an explicit URL scheme (such as
+      ``https://datastore.googleapis.com`` or ``http://localhost:8081``).
+    - ``GOOGLE_CLOUD_DISABLE_GRPC`` is evaluated at module import time using
+      truthiness, so any non-empty string (including ``"0"`` or ``"false"``)
+      disables gRPC and switches to HTTP transport.
+    - ``database`` defaults to ``None``, targeting the default database. Do not
+      pass ``"(default)"``, which the Datastore API rejects.
+
+    Retries and errors:
+
+    - Under default gRPC transport, automatic retries (on ``DeadlineExceeded``
+      and ``ServiceUnavailable``) are configured only for ``lookup``
+      (``get`` / ``get_multi``), ``run_query`` (``Query.fetch``),
+      ``run_aggregation_query`` (``AggregationQuery.fetch``), and
+      ``reserve_ids`` (``reserve_ids*``). No default retry is configured for
+      ``begin_transaction``, ``commit`` (``put``, ``put_multi``, ``delete``,
+      ``delete_multi``, ``Batch.commit``, ``Transaction.commit``),
+      ``rollback``, or ``allocate_ids``. Under HTTP transport, no RPCs have
+      default retries.
+    - Common server exceptions in ``google.api_core.exceptions`` include
+      :class:`~google.api_core.exceptions.Aborted` /
+      :class:`~google.api_core.exceptions.Conflict` (transaction contention,
+      never retried automatically),
+      :class:`~google.api_core.exceptions.FailedPrecondition` (missing
+      composite index), and
+      :class:`~google.api_core.exceptions.InvalidArgument` (entity/mutation
+      limits or invalid request arguments).
+
+    For service concepts and error references, see
+    https://docs.cloud.google.com/datastore/docs/concepts/overview and
+    https://docs.cloud.google.com/datastore/docs/concepts/errors.
+
     :type project: str
     :param project: (Optional) The project to pass to proxied API methods.
+                    If not passed, falls back to ``GOOGLE_CLOUD_PROJECT`` (or
+                    ``GCLOUD_PROJECT``), ``credentials.project_id``, and
+                    finally ``DATASTORE_DATASET``.
 
     :type namespace: str
     :param namespace: (Optional) namespace to pass to proxied API methods.
@@ -262,7 +334,8 @@ class Client(ClientWithProject):
     :param credentials: (Optional) The OAuth2 Credentials to use for this
                         client. If not passed (and if no ``_http`` object is
                         passed), falls back to the default inferred from the
-                        environment.
+                        environment. Must not be passed when
+                        ``DATASTORE_EMULATOR_HOST`` is set.
 
     :type client_info: :class:`google.api_core.gapic_v1.client_info.ClientInfo`
                        or :class:`google.api_core.client_info.ClientInfo`
@@ -275,7 +348,14 @@ class Client(ClientWithProject):
     :type client_options: :class:`~google.api_core.client_options.ClientOptions`
                           or :class:`dict`
     :param client_options: (Optional) Client options used to set user options on the
-                           client. API Endpoint should be set through client_options.
+                           client. ``api_endpoint`` must include a URL scheme
+                           (for example, ``https://datastore.googleapis.com``)
+                           and is overridden by ``DATASTORE_EMULATOR_HOST``.
+
+    :type database: str
+    :param database: (Optional) Named database to pass to proxied API methods.
+                     Defaults to ``None`` for the default database (do not pass
+                     ``"(default)"``). Read-only after construction.
 
     :type _http: :class:`~requests.Session`
     :param _http: (Optional) HTTP object to make requests. Can be any object
@@ -288,14 +368,11 @@ class Client(ClientWithProject):
 
     :type _use_grpc: bool
     :param _use_grpc: (Optional) Explicitly specifies whether
-                      to use the gRPC transport (via GAX) or HTTP. If unset,
+                      to use the gRPC transport or HTTP. If unset,
                       falls back to the ``GOOGLE_CLOUD_DISABLE_GRPC``
-                      environment variable.
+                      environment variable (evaluated at import time).
                       This parameter should be considered private, and could
                       change in the future.
-
-    :type database: str
-    :param database: (Optional) database to pass to proxied API methods.
     """
 
     SCOPE = ("https://www.googleapis.com/auth/datastore",)
@@ -442,6 +519,11 @@ class Client(ClientWithProject):
     ):
         """Retrieve an entity from a single key (if it exists).
 
+        Returns ``None`` if no entity exists for ``key`` (does not raise
+        ``NotFound``). When called inside ``with client.transaction():`` with
+        ``transaction=None``, automatically reads within
+        :attr:`current_transaction`.
+
         .. note::
 
            This is just a thin wrapper over :meth:`get_multi`.
@@ -452,13 +534,16 @@ class Client(ClientWithProject):
         :param key: The key to be retrieved from the datastore.
 
         :type missing: list
-        :param missing: (Optional) If a list is passed, the key-only entities
-                        returned by the backend as "missing" will be copied
-                        into it.
+        :param missing: (Optional) Must be ``None`` or an empty ``list``. If
+                        an empty list is passed, any key-only
+                        :class:`~google.cloud.datastore.entity.Entity` returned
+                        as missing is appended to it.
 
         :type deferred: list
-        :param deferred: (Optional) If a list is passed, the keys returned
-                         by the backend as "deferred" will be copied into it.
+        :param deferred: (Optional) Must be ``None`` or an empty ``list``. If
+                         an empty list is passed, lookup stops after one RPC
+                         and appends any deferred
+                         :class:`~google.cloud.datastore.key.Key` objects to it.
 
         :type transaction:
             :class:`~google.cloud.datastore.transaction.Transaction`
@@ -473,8 +558,11 @@ class Client(ClientWithProject):
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
-            A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            A retry object used to retry requests. In gRPC transport, if
+            ``None`` is specified, ``lookup`` requests are retried using the
+            default configuration (on ``DeadlineExceeded`` and
+            ``ServiceUnavailable``). In HTTP transport, no default retry is
+            configured when ``None`` is specified.
 
         :type timeout: float
         :param timeout:
@@ -485,10 +573,10 @@ class Client(ClientWithProject):
         :type read_time: datetime
         :param read_time: Read the entity from the specified time (may be null).
                           Cannot be used with eventual consistency or inside a
-                          transaction, or will raise ValueError. This feature is in private preview.
+                          transaction, or will raise ValueError.
 
         :rtype: :class:`google.cloud.datastore.entity.Entity` or ``NoneType``
-        :returns: The requested entity if it exists.
+        :returns: The requested entity if it exists, or ``None`` otherwise.
 
         :raises: :class:`ValueError` if more than one of ``eventual==True``,
             ``transaction``, and ``read_time`` is specified.
@@ -519,18 +607,39 @@ class Client(ClientWithProject):
     ):
         """Retrieve entities, along with their attributes.
 
+        .. note::
+
+            - Returned entities are in arbitrary order (not guaranteed to match
+              the input ``keys`` order) and omit missing keys. Index results by
+              ``entity.key`` when order or presence matters.
+            - Out-list parameters ``missing`` and ``deferred`` must be ``None``
+              or an empty ``list`` (``[]``), or :class:`ValueError` is raised.
+              ``missing`` is populated with key-only
+              :class:`~google.cloud.datastore.entity.Entity` objects, whereas
+              ``deferred`` is populated with
+              :class:`~google.cloud.datastore.key.Key` objects.
+            - When ``deferred`` is ``None``, deferred keys are retried
+              automatically in a loop up to 128 RPCs. Passing ``deferred=[]``
+              stops after a single RPC and leaves any remaining deferred keys
+              in ``deferred`` for the caller to fetch.
+            - Datastore enforces a limit of 1,000 keys per ``lookup`` RPC (this
+              method does not chunk larger key lists).
+
         :type keys: list of :class:`google.cloud.datastore.key.Key`
         :param keys: The keys to be retrieved from the datastore.
 
         :type missing: list
-        :param missing: (Optional) If a list is passed, the key-only entities
-                        returned by the backend as "missing" will be copied
-                        into it. If the list is not empty, an error will occur.
+        :param missing: (Optional) If an empty list is passed, key-only
+                        :class:`~google.cloud.datastore.entity.Entity` objects
+                        returned by the backend as missing are copied into it.
+                        Passing a non-empty list raises :class:`ValueError`.
 
         :type deferred: list
-        :param deferred: (Optional) If a list is passed, the keys returned
-                         by the backend as "deferred" will be copied into it.
-                         If the list is not empty, an error will occur.
+        :param deferred: (Optional) If an empty list is passed,
+                         :class:`~google.cloud.datastore.key.Key` objects
+                         returned by the backend as deferred are copied into it
+                         after a single RPC. Passing a non-empty list raises
+                         :class:`ValueError`.
 
         :type transaction:
             :class:`~google.cloud.datastore.transaction.Transaction`
@@ -540,12 +649,16 @@ class Client(ClientWithProject):
         :type eventual: bool
         :param eventual: (Optional) Defaults to strongly consistent (False).
                          Setting True will use eventual consistency, but cannot
-                         be used inside a transaction or will raise ValueError.
+                         be used inside a transaction or with ``read_time``, or
+                         will raise ValueError.
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
-            A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            A retry object used to retry requests. In gRPC transport, if
+            ``None`` is specified, ``lookup`` requests are retried using the
+            default configuration (on ``DeadlineExceeded`` and
+            ``ServiceUnavailable``). In HTTP transport, no default retry is
+            configured when ``None`` is specified.
 
         :type timeout: float
         :param timeout:
@@ -554,14 +667,18 @@ class Client(ClientWithProject):
             to each individual attempt.
 
         :type read_time: datetime
-        :param read_time: (Optional) Read time to use for read consistency. This feature is in private preview.
+        :param read_time: (Optional) Read time to use for read consistency.
+                          Cannot be used with eventual consistency or inside a
+                          transaction, or will raise ValueError.
 
         :rtype: list of :class:`google.cloud.datastore.entity.Entity`
-        :returns: The requested entities.
+        :returns: The requested entities in arbitrary order (omitting missing
+                  keys).
         :raises: :class:`ValueError` if one or more of ``keys`` has a project
-                 which does not match our project; or if more than one of
-                 ``eventual==True``, ``transaction``, and ``read_time`` is
-                 specified.
+                 which does not match our project, if ``missing`` or
+                 ``deferred`` is not ``None`` or an empty list, or if more than
+                 one of ``eventual==True``, ``transaction``, and ``read_time``
+                 is specified.
         """
         if not keys:
             return []
@@ -605,9 +722,18 @@ class Client(ClientWithProject):
 
         .. note::
 
-           This is just a thin wrapper over :meth:`put_multi`.
-           The backend API does not make a distinction between a single
-           entity or multiple entities in a commit request.
+           This is a thin wrapper over :meth:`put_multi`. The backend API does
+           not distinguish between a single entity or multiple entities in a
+           commit request.
+
+           - Performs a full-entity upsert replacement (or insert for partial
+             keys), not a partial field merge. Properties omitted from
+             ``entity`` are removed on the server.
+           - Returns ``None``. If ``entity.key`` is partial, it is mutated in
+             place with the server-allocated complete key upon commit.
+           - Inside ``with client.batch():`` or ``with client.transaction():``,
+             the write is buffered until commit and ``retry`` and ``timeout``
+             are ignored.
 
         :type entity: :class:`google.cloud.datastore.entity.Entity`
         :param entity: The entity to be saved to the datastore.
@@ -615,8 +741,9 @@ class Client(ClientWithProject):
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
-            Only meaningful outside of another batch / transaction.
+            no default retry is configured for ``commit`` RPCs in gRPC or HTTP
+            transport (requests are sent once without automatic retry). Only
+            meaningful outside of another batch / transaction.
 
         :type timeout: float
         :param timeout:
@@ -630,14 +757,30 @@ class Client(ClientWithProject):
     def put_multi(self, entities, retry=None, timeout=None):
         """Save entities in the Cloud Datastore.
 
+        .. note::
+
+            - Performs full-entity upsert replacement (or insert for partial
+              keys), not a partial field merge. Properties omitted from each
+              entity are removed on the server.
+            - Returns ``None``. Partial ``entity.key`` values are mutated in
+              place with server-allocated complete keys upon commit.
+            - Outside an active transaction, ``put_multi`` commits in
+              ``NON_TRANSACTIONAL`` mode (not atomic across entities) and
+              supports up to 500 entities per call (does not chunk larger
+              sequences).
+            - Inside ``with client.batch():`` or
+              ``with client.transaction():``, writes are buffered until commit
+              and ``retry`` and ``timeout`` are ignored.
+
         :type entities: list of :class:`google.cloud.datastore.entity.Entity`
         :param entities: The entities to be saved to the datastore.
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
-            Only meaningful outside of another batch / transaction.
+            no default retry is configured for ``commit`` RPCs in gRPC or HTTP
+            transport (requests are sent once without automatic retry). Only
+            meaningful outside of another batch / transaction.
 
         :type timeout: float
         :param timeout:
@@ -672,19 +815,31 @@ class Client(ClientWithProject):
 
         .. note::
 
-           This is just a thin wrapper over :meth:`delete_multi`.
-           The backend API does not make a distinction between a single key or
-           multiple keys in a commit request.
+           This is a thin wrapper over :meth:`delete_multi`. The backend API
+           does not distinguish between a single key or multiple keys in a
+           commit request.
+
+           - Idempotent: deleting a non-existent key succeeds without error.
+           - Accepts either a complete :class:`~google.cloud.datastore.key.Key`
+             or an :class:`~google.cloud.datastore.entity.Entity` (unlike
+             :meth:`~google.cloud.datastore.batch.Batch.delete` and
+             :meth:`~google.cloud.datastore.transaction.Transaction.delete`,
+             which require a ``Key``). Partial keys raise :class:`ValueError`
+             client-side.
+           - Inside ``with client.batch():`` or ``with client.transaction():``,
+             the delete is buffered until commit and ``retry`` and ``timeout``
+             are ignored.
 
         :type key: :class:`google.cloud.datastore.key.Key`, :class:`google.cloud.datastore.entity.Entity`
 
-        :param key: The key to be deleted from the datastore.
+        :param key: The key or entity to be deleted from the datastore.
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
-            Only meaningful outside of another batch / transaction.
+            no default retry is configured for ``commit`` RPCs in gRPC or HTTP
+            transport (requests are sent once without automatic retry). Only
+            meaningful outside of another batch / transaction.
 
         :type timeout: float
         :param timeout:
@@ -692,20 +847,37 @@ class Client(ClientWithProject):
             Note that if ``retry`` is specified, the timeout applies
             to each individual attempt.  Only meaningful outside of another
             batch / transaction.
+
+        :raises: :class:`ValueError` if ``key`` is partial or does not match
+                 the client's project or database.
         """
         self.delete_multi(keys=[key], retry=retry, timeout=timeout)
 
     def delete_multi(self, keys, retry=None, timeout=None):
         """Delete keys from the Cloud Datastore.
 
+        .. note::
+
+            - Idempotent: deleting non-existent keys succeeds without error.
+            - Accepts complete :class:`~google.cloud.datastore.key.Key` or
+              :class:`~google.cloud.datastore.entity.Entity` instances. Partial
+              keys raise :class:`ValueError` client-side.
+            - Outside an active transaction, ``delete_multi`` commits in
+              ``NON_TRANSACTIONAL`` mode (not atomic across keys) and supports
+              up to 500 keys per call (does not chunk larger sequences).
+            - Inside ``with client.batch():`` or
+              ``with client.transaction():``, deletes are buffered until commit
+              and ``retry`` and ``timeout`` are ignored.
+
         :type keys: list of :class:`google.cloud.datastore.key.Key`, :class:`google.cloud.datastore.entity.Entity`
-        :param keys: The keys to be deleted from the Datastore.
+        :param keys: The keys or entities to be deleted from the Datastore.
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
-            Only meaningful outside of another batch / transaction.
+            no default retry is configured for ``commit`` RPCs in gRPC or HTTP
+            transport (requests are sent once without automatic retry). Only
+            meaningful outside of another batch / transaction.
 
         :type timeout: float
         :param timeout:
@@ -713,11 +885,14 @@ class Client(ClientWithProject):
             Note that if ``retry`` is specified, the timeout applies
             to each individual attempt.  Only meaningful outside of another
             batch / transaction.
+
+        :raises: :class:`ValueError` if any key is partial or does not match
+                 the client's project or database.
         """
         if not keys:
             return
 
-        # We allow partial keys to attempt a delete, the backend will fail.
+        # Partial keys raise ValueError client-side in Batch.delete().
         current = self.current_batch
         in_batch = current is not None
 
@@ -737,6 +912,11 @@ class Client(ClientWithProject):
     def allocate_ids(self, incomplete_key, num_ids, retry=None, timeout=None):
         """Allocate a list of IDs from a partial key.
 
+        Requests ``num_ids`` server-generated numeric IDs from Datastore
+        (unlike :meth:`reserve_ids_multi` and :meth:`reserve_ids_sequential`,
+        which reserve caller-chosen numeric IDs so Datastore will not
+        auto-allocate them).
+
         :type incomplete_key: :class:`google.cloud.datastore.key.Key`
         :param incomplete_key: Partial key to use as base for allocated IDs.
 
@@ -746,7 +926,8 @@ class Client(ClientWithProject):
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
             A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            no default retry is configured for ``allocate_ids`` RPCs in gRPC or
+            HTTP transport (requests are sent once without automatic retry).
 
         :type timeout: float
         :param timeout:
@@ -787,7 +968,13 @@ class Client(ClientWithProject):
     def key(self, *path_args, **kwargs):
         """Proxy to :class:`google.cloud.datastore.key.Key`.
 
-        Passes our ``project`` and our ``database``.
+        Passes this client's ``project``, ``database``, and (unless explicitly
+        provided via ``namespace=``) ``namespace``.
+
+        :rtype: :class:`~google.cloud.datastore.key.Key`
+        :returns: A new key bound to this client's project and database.
+        :raises: :class:`TypeError` if ``project`` or ``database`` is passed in
+                 ``kwargs``.
         """
         if "project" in kwargs:
             raise TypeError("Cannot pass project")
@@ -804,20 +991,77 @@ class Client(ClientWithProject):
         return Entity(key=key, exclude_from_indexes=exclude_from_indexes)
 
     def batch(self):
-        """Proxy to :class:`google.cloud.datastore.batch.Batch`."""
+        """Proxy to :class:`google.cloud.datastore.batch.Batch`.
+
+        .. warning::
+
+            ``Batch`` commits in ``NON_TRANSACTIONAL`` mode and is NOT atomic
+            or isolated across entities (unlike Firestore ``WriteBatch`` or
+            :meth:`transaction`). Partial writes can persist if another
+            mutation fails, and duplicate mutations for the same key fail
+            server-side. Use :meth:`transaction` when all-or-nothing atomicity
+            is required.
+
+        Inside ``with client.batch():``, ``client.put()`` and
+        ``client.delete()`` buffer mutations and commit on normal exit
+        (discarding locally on exception). Maximum 500 mutations per commit.
+
+        :rtype: :class:`~google.cloud.datastore.batch.Batch`
+        :returns: A new batch bound to this client.
+        """
         return Batch(self)
 
     def transaction(self, **kwargs):
         """Proxy to :class:`google.cloud.datastore.transaction.Transaction`.
 
-        :param kwargs: Keyword arguments to be passed in.
+        .. warning::
+
+            Datastore transactions do NOT automatically retry on contention
+            (:class:`~google.api_core.exceptions.Aborted` in gRPC or
+            :class:`~google.api_core.exceptions.Conflict` in HTTP), unlike
+            ``google-cloud-firestore`` ``@firestore.transactional`` or
+            ``google-cloud-ndb`` ``@ndb.transactional``. Wrap idempotent
+            read-modify-write logic in a manual retry loop with exponential
+            backoff, creating a fresh ``client.transaction()`` for each
+            attempt.
+
+        .. note::
+
+            - Using ``with client.transaction():`` pushes the transaction onto
+              the client's thread-local stack so ``client.get()``,
+              ``client.put()``, ``client.delete()``, and ``query.fetch()``
+              attach automatically, commit on normal exit, and roll back on
+              exceptions.
+            - Managing ``txn.begin()`` manually without ``with`` does NOT push
+              onto the stack: ``client.put()`` and ``client.delete()`` run
+              outside the transaction unless you call ``txn.put()`` and
+              ``txn.delete()``, reads require ``transaction=txn``, and
+              ``query.fetch()`` cannot attach.
+            - Avoid nesting ``with client.batch():`` inside
+              ``with client.transaction():``, which hides
+              :attr:`current_transaction`. Exhaust lazy query iterators before
+              exiting the ``with`` block.
+            - Buffered writes are serialized at ``put()`` time, are not visible
+              to reads in the same transaction, and support up to 500 mutations
+              per commit. See
+              :class:`~google.cloud.datastore.transaction.Transaction` for a
+              retry-loop example and full lifecycle details.
+
+        :param kwargs: Keyword arguments passed to
+                       :class:`~google.cloud.datastore.transaction.Transaction`
+                       (such as ``read_only``, ``read_time``, and
+                       ``begin_later``).
+
+        :rtype: :class:`~google.cloud.datastore.transaction.Transaction`
+        :returns: A new transaction bound to this client.
         """
         return Transaction(self, **kwargs)
 
     def query(self, **kwargs):
         """Proxy to :class:`google.cloud.datastore.query.Query`.
 
-        Passes our ``project``.
+        Passes this client's ``project`` and (unless explicitly provided via
+        ``namespace=``) ``namespace``.
 
         Using query to search a datastore:
 
@@ -826,6 +1070,7 @@ class Client(ClientWithProject):
             import uuid
 
             from google.cloud import datastore
+            from google.cloud.datastore.query import PropertyFilter
 
             unique = str(uuid.uuid4())[0:8]
             client = datastore.Client(namespace='ns{}'.format(unique))
@@ -836,14 +1081,14 @@ class Client(ClientWithProject):
         .. doctest:: query
 
             >>> query = client.query(kind='MyKind')
-            >>> query.add_filter('property', '=', 'val')
+            >>> query.add_filter(filter=PropertyFilter('property', '=', 'val'))
             <google.cloud.datastore.query.Query object at ...>
 
         Using the query iterator
 
         .. doctest:: query
 
-            >>> filters = [('property', '=', 'val')]
+            >>> filters = [PropertyFilter('property', '=', 'val')]
             >>> query = client.query(kind='MyKind', filters=filters)
             >>> query_iter = query.fetch()
             >>> for entity in query_iter:
@@ -861,11 +1106,13 @@ class Client(ClientWithProject):
             >>> query_iter.next_page_token is None
             True
 
-        :param kwargs: Parameters for initializing and instance of
+        :param kwargs: Parameters for initializing an instance of
                        :class:`~google.cloud.datastore.query.Query`.
 
         :rtype: :class:`~google.cloud.datastore.query.Query`
         :returns: A query object.
+        :raises: :class:`TypeError` if ``client`` or ``project`` is passed in
+                 ``kwargs``.
         """
         if "client" in kwargs:
             raise TypeError("Cannot pass client")
@@ -891,7 +1138,7 @@ class Client(ClientWithProject):
             unique = str(uuid.uuid4())[0:8]
             client = datastore.Client(namespace='ns{}'.format(unique))
 
-            def do_something_with(entity):
+            def do_something_with(result):
                 pass
 
         .. doctest:: aggregation_query
@@ -908,6 +1155,7 @@ class Client(ClientWithProject):
         .. doctest:: aggregation_query
 
             >>> query = client.query(kind='MyKind')
+            >>> aggregation_query = client.aggregation_query(query)
             >>> aggregation_query.add_aggregation(CountAggregation(alias='total'))
             >>> aggregation_query.fetch()
             <google.cloud.datastore.aggregation.AggregationResultIterator object at ...>
@@ -917,6 +1165,7 @@ class Client(ClientWithProject):
         .. doctest:: aggregation_query
 
             >>> query = client.query(kind='MyKind')
+            >>> aggregation_query = client.aggregation_query(query)
             >>> total_count = CountAggregation(alias='total')
             >>> all_count = CountAggregation(alias='all')
             >>> aggregation_query.add_aggregations([total_count, all_count])
@@ -933,8 +1182,9 @@ class Client(ClientWithProject):
             >>> aggregation_query.count(alias='total')
             <google.cloud.datastore.aggregation.AggregationQuery object at ...>
             >>> aggregation_query_iter = aggregation_query.fetch()
-            >>> for aggregation_result in aggregation_query_iter:
-            ...     do_something_with(aggregation_result)
+            >>> for aggregation_results in aggregation_query_iter:
+            ...     for aggregation_result in aggregation_results:
+            ...         do_something_with(aggregation_result)
 
         or manually page through results
 
@@ -944,11 +1194,14 @@ class Client(ClientWithProject):
             >>> pages = aggregation_query_iter.pages
             >>>
             >>> first_page = next(pages)
-            >>> first_page_entities = list(first_page)
+            >>> first_page_results = list(first_page)
             >>> aggregation_query_iter.next_page_token is None
             True
 
-        :param kwargs: Parameters for initializing and instance of
+        :type query: :class:`~google.cloud.datastore.query.Query`
+        :param query: The query to aggregate over.
+
+        :param kwargs: Parameters for initializing an instance of
                        :class:`~google.cloud.datastore.aggregation.AggregationQuery`.
 
         :rtype: :class:`~google.cloud.datastore.aggregation.AggregationQuery`
@@ -959,10 +1212,11 @@ class Client(ClientWithProject):
     def reserve_ids_sequential(self, complete_key, num_ids, retry=None, timeout=None):
         """Reserve a list of IDs sequentially from a complete key.
 
-        This will reserve the key passed as `complete_key` as well as
+        Reserves the caller-chosen key passed as ``complete_key`` as well as
         additional keys derived by incrementing the last ID in the path of
-        `complete_key` sequentially to obtain the number of keys specified in
-        `num_ids`.
+        ``complete_key`` sequentially to obtain ``num_ids`` keys, preventing
+        Datastore from auto-allocating those IDs (unlike :meth:`allocate_ids`,
+        which generates new IDs).
 
         :type complete_key: :class:`google.cloud.datastore.key.Key`
         :param complete_key:
@@ -974,8 +1228,11 @@ class Client(ClientWithProject):
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
-            A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            A retry object used to retry requests. In gRPC transport, if
+            ``None`` is specified, ``reserve_ids`` requests are retried using
+            the default configuration (on ``DeadlineExceeded`` and
+            ``ServiceUnavailable``). In HTTP transport, no default retry is
+            configured when ``None`` is specified.
 
         :type timeout: float
         :param timeout:
@@ -983,10 +1240,11 @@ class Client(ClientWithProject):
             Note that if ``retry`` is specified, the timeout applies
             to each individual attempt.
 
-        :rtype: class:`NoneType`
+        :rtype: ``NoneType``
         :returns: None
-        :raises: :class:`ValueError` if `complete_key`` is not a
-                 Complete key.
+        :raises: :class:`ValueError` if ``complete_key`` is not a complete key,
+                 if ``complete_key`` uses a string name instead of a numeric
+                 ID, or if ``num_ids`` is not an integer.
         """
         if complete_key.is_partial:
             raise ValueError(("Key is not Complete.", complete_key))
@@ -1040,14 +1298,23 @@ class Client(ClientWithProject):
     def reserve_ids_multi(self, complete_keys, retry=None, timeout=None):
         """Reserve IDs from a list of complete keys.
 
-        :type complete_keys: `list` of :class:`google.cloud.datastore.key.Key`
+        Recommended over :meth:`reserve_ids` for reserving specific
+        caller-chosen numeric IDs so Datastore will not auto-allocate them
+        (unlike :meth:`allocate_ids`, which generates new IDs). Each key must
+        be complete with a numeric ID (not a string name), and
+        ``complete_keys`` must be non-empty.
+
+        :type complete_keys: list of :class:`google.cloud.datastore.key.Key`
         :param complete_keys:
-            Complete keys for which to reserve IDs.
+            Non-empty sequence of complete keys with numeric IDs to reserve.
 
         :type retry: :class:`google.api_core.retry.Retry`
         :param retry:
-            A retry object used to retry requests. If ``None`` is specified,
-            requests will be retried using a default configuration.
+            A retry object used to retry requests. In gRPC transport, if
+            ``None`` is specified, ``reserve_ids`` requests are retried using
+            the default configuration (on ``DeadlineExceeded`` and
+            ``ServiceUnavailable``). In HTTP transport, no default retry is
+            configured when ``None`` is specified.
 
         :type timeout: float
         :param timeout:
@@ -1055,10 +1322,10 @@ class Client(ClientWithProject):
             Note that if ``retry`` is specified, the timeout applies
             to each individual attempt.
 
-        :rtype: class:`NoneType`
+        :rtype: ``NoneType``
         :returns: None
-        :raises: :class:`ValueError` if any of `complete_keys`` is not a
-                 Complete key.
+        :raises: :class:`ValueError` if any of ``complete_keys`` is not a
+                 complete key.
         """
         for complete_key in complete_keys:
             if complete_key.is_partial:

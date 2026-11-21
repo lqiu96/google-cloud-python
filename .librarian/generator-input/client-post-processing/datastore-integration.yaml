@@ -64,6 +64,7 @@ replacements:
           keys
           queries
           aggregations
+          query_profile
           transactions
           batches
           helpers
@@ -86,46 +87,47 @@ replacements:
       from google.cloud.datastore import gapic_version as package_version
       [\s\S]*?"PlanSummary",\n\)
     after: |
-      """Shortcut methods for getting set up with Google Cloud Datastore.
+      """Google Cloud Datastore API client library.
 
-      You'll typically use these to get started with the API:
+      This package provides the hand-written synchronous veneer for Cloud Datastore
+      (and Firestore in Datastore mode).
 
-      .. doctest:: constructors
+      Choosing the right package:
 
-         >>> from google.cloud import datastore
-         >>>
-         >>> client = datastore.Client()
-         >>> key = client.key('EntityKind', 1234)
-         >>> key
-         <Key('EntityKind', 1234), project=...>
-         >>> entity = datastore.Entity(key)
-         >>> entity['question'] = u'Life, universe?'  # Explicit unicode for text
-         >>> entity['answer'] = 42
-         >>> entity
-         <Entity('EntityKind', 1234) {'question': 'Life, universe?', 'answer': 42}>
-         >>> query = client.query(kind='EntityKind')
+      - Use ``google.cloud.datastore`` (this veneer) for idiomatic synchronous
+        entities, keys, queries, aggregations, batches, and transactions. Top-level
+        exports include ``Client``, ``Entity``, ``Key``, ``Query``, ``Batch``,
+        ``Transaction``, and ``ExplainOptions``. Query filters (``PropertyFilter``,
+        ``And``, ``Or``), ``AggregationQuery``, and ``GeoPoint`` are imported from
+        submodules under ``google.cloud.datastore``.
+      - Use ``google.cloud.datastore_v1`` (bundled in this distribution) when you
+        need ``asyncio`` (:class:`~google.cloud.datastore_v1.DatastoreAsyncClient`)
+        or GAPIC-only features such as GQL queries (``GqlQuery``), vector search
+        (``FindNearest``), ``PropertyMask``, ``PropertyTransform`` server-side
+        transforms, or ``previous_transaction`` retry priority. Do not mix types
+        between ``google.cloud.datastore`` and ``google.cloud.datastore_v1``, which
+        share 10 class names: ``AggregationQuery``, ``AggregationResult``,
+        ``Entity``, ``ExecutionStats``, ``ExplainMetrics``, ``ExplainOptions``,
+        ``Key``, ``PlanSummary``, ``PropertyFilter``, and ``Query``.
+      - Use ``google-cloud-ndb`` when migrating App Engine NDB applications, or
+        ``google-cloud-firestore`` for Firestore in Native mode.
 
-      The main concepts with this API are:
+      Example:
 
-      - :class:`~google.cloud.datastore.client.Client`
-        which represents a project (string), database (string), and namespace
-        (string) bundled with a connection and has convenience methods for
-        constructing objects with that project/database/namespace.
+      .. code-block:: python
 
-      - :class:`~google.cloud.datastore.entity.Entity`
-        which represents a single entity in the datastore
-        (akin to a row in relational database world).
+          from google.cloud import datastore
 
-      - :class:`~google.cloud.datastore.key.Key`
-        which represents a pointer to a particular entity in the datastore
-        (akin to a unique identifier in relational database world).
+          # Reuse a single Client instance across requests.
+          client = datastore.Client()
+          key = client.key("Task", "sample_task")
+          entity = datastore.Entity(key=key)
+          entity["description"] = "Buy milk"
+          client.put(entity)
 
-      - :class:`~google.cloud.datastore.query.Query`
-        which represents a lookup or search over the rows in the datastore.
-
-      - :class:`~google.cloud.datastore.transaction.Transaction`
-        which represents an all-or-none transaction and enables consistency
-        when race conditions may occur.
+      See :class:`~google.cloud.datastore.client.Client` for lifecycle, transport,
+      emulator, and concurrency details, and the canonical product documentation at
+      https://docs.cloud.google.com/datastore/docs.
       """
 
       from google.cloud.datastore.batch import Batch
