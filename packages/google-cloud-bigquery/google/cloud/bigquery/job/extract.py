@@ -43,7 +43,7 @@ class ExtractJobConfig(_JobConfig):
         exported files.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationExtract.FIELDS.compression
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationExtract.FIELDS.compression
         """
         return self._get_sub_prop("compression")
 
@@ -56,7 +56,7 @@ class ExtractJobConfig(_JobConfig):
         """google.cloud.bigquery.job.DestinationFormat: Exported file format.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationExtract.FIELDS.destination_format
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationExtract.FIELDS.destination_format
         """
         return self._get_sub_prop("destinationFormat")
 
@@ -69,7 +69,7 @@ class ExtractJobConfig(_JobConfig):
         """str: Delimiter to use between fields in the exported data.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationExtract.FIELDS.field_delimiter
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationExtract.FIELDS.field_delimiter
         """
         return self._get_sub_prop("fieldDelimiter")
 
@@ -82,7 +82,7 @@ class ExtractJobConfig(_JobConfig):
         """bool: Print a header row in the exported data.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationExtract.FIELDS.print_header
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationExtract.FIELDS.print_header
         """
         return self._get_sub_prop("printHeader")
 
@@ -92,9 +92,13 @@ class ExtractJobConfig(_JobConfig):
 
     @property
     def use_avro_logical_types(self):
-        """bool: For loads of Avro data, governs whether Avro logical types are
-        converted to their corresponding BigQuery types (e.g. TIMESTAMP) rather than
-        raw types (e.g. INTEGER).
+        """bool: For exports to Avro format, governs whether BigQuery types are
+        converted to their corresponding Avro logical types (for example,
+        ``DATE``, ``TIME``, ``DATETIME``, ``TIMESTAMP``, and ``NUMERIC``) rather
+        than raw Avro primitive types.
+
+        See
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationExtract.FIELDS.use_avro_logical_types
         """
         return self._get_sub_prop("useAvroLogicalTypes")
 
@@ -222,7 +226,7 @@ class ExtractJob(_AsyncJob):
         """Return file counts from job statistics, if present.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics4.FIELDS.destination_uri_file_counts
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobStatistics4.FIELDS.destination_uri_file_counts
 
         Returns:
             List[int]:

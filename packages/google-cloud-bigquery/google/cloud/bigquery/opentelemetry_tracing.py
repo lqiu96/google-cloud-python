@@ -56,8 +56,8 @@ def create_span(name, attributes=None, client=None, job_ref=None):
 
         Raises:
             google.api_core.exceptions.GoogleAPICallError:
-                Raised if a span could not be yielded or issue with call to
-                OpenTelemetry.
+                Re-raised from the wrapped BigQuery API call after recording
+                its HTTP status code on the OpenTelemetry span.
     """
     global _warned_telemetry
     final_attributes = _get_final_span_attributes(attributes, client, job_ref)

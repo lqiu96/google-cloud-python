@@ -17,7 +17,7 @@
 See `PEP-249`_ for details.
 
 .. _PEP-249:
-    https://www.python.org/dev/peps/pep-0249/#type-objects-and-constructors
+    https://peps.python.org/pep-0249/#type-objects-and-constructors
 """
 
 import datetime
@@ -31,7 +31,7 @@ TimestampFromTicks = datetime.datetime.fromtimestamp
 
 
 def Binary(data):
-    """Contruct a DB-API binary value.
+    """Construct a DB-API binary value.
 
     Args:
         data (bytes-like): An object containing binary data and that
@@ -77,7 +77,7 @@ class _DBAPITypeObject(object):
     See `PEP-249`_ for details.
 
     .. _PEP-249:
-        https://www.python.org/dev/peps/pep-0249/#implementation-hints-for-module-authors
+        https://peps.python.org/pep-0249/#implementation-hints-for-module-authors
     """
 
     def __init__(self, *values):

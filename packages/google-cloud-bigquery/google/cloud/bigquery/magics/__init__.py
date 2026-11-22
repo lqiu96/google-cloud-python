@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Deprecated IPython magics package for BigQuery.
+
+IPython magics have moved to the standalone ``bigquery-magics`` package.
+Install ``bigquery-magics`` and run ``%load_ext bigquery_magics`` instead of
+``%load_ext google.cloud.bigquery``.
+"""
+
 from google.cloud.bigquery.magics.magics import context
 
 

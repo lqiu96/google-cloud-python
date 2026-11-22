@@ -12,6 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Retry policies and default timeout constants for BigQuery API calls.
+
+This module defines retry policies for standard REST API requests
+(:data:`DEFAULT_RETRY`) and transient query job failures
+(:data:`DEFAULT_JOB_RETRY`). Predicates evaluate structured BigQuery error
+reasons in ``exc.errors[0]["reason"]`` before falling back to HTTP status codes
+or transport exceptions.
+
+See https://docs.cloud.google.com/bigquery/docs/errors for API status and
+reason codes, and https://docs.cloud.google.com/bigquery/docs/error-messages
+for client and connectivity errors.
+"""
+
 import logging
 
 from google.api_core import exceptions
@@ -88,13 +101,25 @@ def _should_retry(exc):
 
 
 DEFAULT_RETRY = retry.Retry(predicate=_should_retry, deadline=_DEFAULT_RETRY_DEADLINE)
-"""The default retry object.
+"""The default retry object for BigQuery API requests.
 
-Any method with a ``retry`` parameter will be retried automatically,
-with reasonable defaults. To disable retry, pass ``retry=None``.
-To modify the default retry behavior, call a ``with_XXX`` method
-on ``DEFAULT_RETRY``. For example, to change the deadline to 30 seconds,
-pass ``retry=bigquery.DEFAULT_RETRY.with_deadline(30)``.
+Evaluates the structured error reason in ``exc.errors[0]["reason"]`` before
+HTTP status codes. Transient request reasons such as ``rateLimitExceeded``
+(including HTTP 403), ``backendError``, ``internalError``, and ``badGateway``
+are retried, while permanent structured reasons (such as ``accessDenied``,
+``invalidQuery``, or ``quotaExceeded``) fail immediately without retry even on
+HTTP 403 or 5xx responses. Raw HTTP 429/5xx and transport errors (excluding
+:class:`requests.exceptions.SSLError`) are retried only when no structured
+reason is present.
+
+Any method with a ``retry`` parameter will be retried automatically using this
+default. To disable retries, pass ``retry=None``. To customize retry settings,
+call a ``with_*`` method on ``DEFAULT_RETRY`` (for example,
+``retry=bigquery.DEFAULT_RETRY.with_deadline(30)``).
+
+See https://docs.cloud.google.com/bigquery/docs/errors for API status and
+reason codes, and https://docs.cloud.google.com/bigquery/docs/error-messages
+for client and connectivity errors.
 """
 
 
@@ -178,8 +203,32 @@ def _job_should_retry(exc):
 DEFAULT_JOB_RETRY = retry.Retry(
     predicate=_job_should_retry, deadline=_DEFAULT_JOB_DEADLINE
 )
-"""
-The default job retry object.
+"""The default retry object for retrying transient BigQuery query job failures.
+
+Applies when a query job finishes in state ``DONE`` with a transient job
+execution reason (``jobBackendError``, ``jobInternalError``, or
+``jobRateLimitExceeded``) as well as transient request errors matched by
+:data:`DEFAULT_RETRY` (unwrapping :class:`~google.api_core.exceptions.RetryError`
+causes). Retrying a failed job submits a new server-side job with a new job ID.
+Automatic job retry is disabled when a caller supplies an explicit ``job_id``.
+
+Note:
+    - Import ``DEFAULT_JOB_RETRY`` from ``google.cloud.bigquery.retry`` (it is
+      not re-exported on the top-level ``google.cloud.bigquery`` module).
+    - Under :meth:`~google.cloud.bigquery.client.Client.query`'s default
+      ``api_method=QueryApiMethod.INSERT``, any non-``None`` ``job_retry``
+      wraps ``jobs.insert`` in an internal 600-second retry loop
+      (``_DEFAULT_QUERY_JOB_INSERT_RETRY``) that unwraps
+      :attr:`~google.api_core.exceptions.RetryError.cause` and ignores
+      ``job_retry.deadline``. For strict bounded deadlines, use
+      ``api_method=QueryApiMethod.QUERY`` or
+      :meth:`~google.cloud.bigquery.client.Client.query_and_wait`, or pass
+      ``job_retry=None`` and manage job-level retries under a shared outer
+      monotonic deadline while trimming per-RPC ``timeout`` to the remaining
+      budget.
+
+See https://docs.cloud.google.com/bigquery/docs/errors and
+https://docs.cloud.google.com/bigquery/docs/managing-jobs#repeat_jobs.
 """
 
 

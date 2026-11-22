@@ -17,8 +17,25 @@
 This module implements the `Python Database API Specification v2.0 (DB-API)`_
 for Google BigQuery.
 
+Key PEP 249 notes and deviations:
+
+- ``threadsafety = 2``: threads may share this module and
+  :class:`~google.cloud.bigquery.dbapi.Connection` instances, but not
+  :class:`~google.cloud.bigquery.dbapi.Cursor` instances.
+- ``paramstyle = "pyformat"``: supports ``%s`` (positional), ``%(name)s``
+  (named), and extended inline type annotations such as ``%(name:type)s`` and
+  ``%(:struct<...>)s``. ``%%`` is unescaped to ``%`` even when ``parameters``
+  is ``None`` or empty.
+- Client-managed transactions are not supported. ``Connection.commit()`` is a
+  no-op (raising ``ProgrammingError`` if closed) and ``Connection`` has no
+  ``rollback()`` method.
+- Neither ``Connection`` nor ``Cursor`` implements the context manager
+  protocol (``with`` raises :class:`TypeError`). Call ``close()`` explicitly.
+- ``Cursor.arraysize`` defaults to ``None`` (passed as ``page_size``) rather
+  than ``1``.
+
 .. _Python Database API Specification v2.0 (DB-API):
-   https://www.python.org/dev/peps/pep-0249/
+   https://peps.python.org/pep-0249/
 """
 
 from google.cloud.bigquery.dbapi.connection import connect

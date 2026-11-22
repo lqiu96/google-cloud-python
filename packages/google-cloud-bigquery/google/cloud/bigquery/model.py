@@ -33,12 +33,12 @@ class Model:
     """Model represents a machine learning model resource.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/models
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/models
 
     Args:
         model_ref:
             A pointer to a model. If ``model_ref`` is a string, it must
-            included a project ID, dataset ID, and model ID, each separated
+            include a project ID, dataset ID, and model ID, each separated
             by ``.``.
     """
 
@@ -165,7 +165,7 @@ class Model:
         """Information for all training runs in increasing order of start time.
 
         Dictionaries are in REST API format. See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/models#trainingrun
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/models#trainingrun
 
         Read-only.
         """
@@ -192,7 +192,7 @@ class Model:
         The output transform columns used to train this model.
 
         See REST API:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/models#transformcolumn
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/models#transformcolumn
 
         Read-only.
         """
@@ -220,8 +220,8 @@ class Model:
     def best_trial_id(self) -> Optional[int]:
         """The best trial_id across all training runs.
 
-        .. deprecated::
-            This property is deprecated!
+        .. warning::
+            This property is deprecated in the BigQuery API.
 
         Read-only.
         """
@@ -267,7 +267,7 @@ class Model:
 
     @property
     def friendly_name(self) -> Optional[str]:
-        """Title of the table (defaults to :data:`None`)."""
+        """Title of the model (defaults to :data:`None`)."""
         return typing.cast(Optional[str], self._properties.get("friendlyName"))
 
     @friendly_name.setter
@@ -277,7 +277,7 @@ class Model:
 
     @property
     def labels(self) -> Dict[str, str]:
-        """Labels for the table.
+        """Labels for the model.
 
         This method always returns a dict. To change a model's labels, modify the dict,
         then call ``Client.update_model``. To delete a label, set its value to
@@ -299,7 +299,7 @@ class Model:
         if using default encryption.
 
         See `protecting data with Cloud KMS keys
-        <https://cloud.google.com/bigquery/docs/customer-managed-encryption>`_
+        <https://docs.cloud.google.com/bigquery/docs/customer-managed-encryption>`_
         in the BigQuery documentation.
         """
         prop = self._properties.get("encryptionConfiguration")
@@ -339,7 +339,7 @@ class Model:
         """Construct the API resource representation of this model.
 
         Returns:
-            Model reference represented as an API resource
+            Model represented as an API resource.
         """
         return copy.deepcopy(self._properties)
 
@@ -348,7 +348,7 @@ class ModelReference:
     """ModelReferences are pointers to models.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/models#modelreference
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/models#modelreference
     """
 
     def __init__(self):
@@ -398,7 +398,7 @@ class ModelReference:
         Args:
             model_id:
                 A model ID in standard SQL format. If ``default_project``
-                is not specified, this must included a project ID, dataset
+                is not specified, this must include a project ID, dataset
                 ID, and model ID, each separated by ``.``.
             default_project:
                 The project ID to use when ``model_id`` does not include
@@ -409,7 +409,7 @@ class ModelReference:
 
         Raises:
             ValueError:
-                If ``model_id`` is not a fully-qualified table ID in
+                If ``model_id`` is not a fully-qualified model ID in
                 standard SQL format.
         """
         proj, dset, model = _helpers._parse_3_part_id(
@@ -455,7 +455,7 @@ class TransformColumn:
     """TransformColumn represents a transform column feature.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/models#transformcolumn
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/models#transformcolumn
 
     Args:
         resource:

@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""IPython Magics
+"""Deprecated IPython Magics for BigQuery.
 
-Install ``bigquery-magics`` and call ``%load_ext bigquery_magics`` to use the
-``%%bigquery`` cell magic.
+This module is deprecated in favor of the standalone ``bigquery-magics``
+package. Install ``bigquery-magics`` and call ``%load_ext bigquery_magics``
+to use the ``%%bigquery`` cell magic.
 
 See the `BigQuery Magics reference documentation
 <https://googleapis.dev/python/bigquery-magics/latest/>`_.
@@ -98,8 +99,7 @@ class Context(object):
             >>> magics.context.credentials = credentials
 
 
-        .. _auth docs: http://google-auth.readthedocs.io
-            /en/latest/user-guide.html#obtaining-credentials
+        .. _auth docs: https://google-auth.readthedocs.io/en/latest/user-guide.html#obtaining-credentials
         """
         if self._credentials is None:
             self._credentials, _ = google.auth.default()
@@ -139,7 +139,7 @@ class Context(object):
         """google.api_core.client_options.ClientOptions: client options to be
         used through IPython magics.
 
-        Note::
+        Note:
             The client options do not need to be explicitly defined if no
             special network connections are required. Normally you would be
             using the https://bigquery.googleapis.com/ end point.
@@ -163,7 +163,7 @@ class Context(object):
         """google.api_core.client_options.ClientOptions: client options to be
         used through IPython magics for the storage client.
 
-        Note::
+        Note:
             The client options do not need to be explicitly defined if no
             special network connections are required. Normally you would be
             using the https://bigquerystorage.googleapis.com/ end point.
@@ -209,7 +209,7 @@ class Context(object):
         """str: Default progress bar type to use to display progress bar while
         executing queries through IPython magics.
 
-        Note::
+        Note:
             Install the ``tqdm`` package to use this feature.
 
         Example:
@@ -280,8 +280,8 @@ def _run_query(client, query, job_config=None):
         >>> _run_query(client, "SELECT 17")
         Executing query with job ID: bf633912-af2c-4780-b568-5d868058632b
         Query executing: 1.66s
-        Query complete after 2.07s
-        'bf633912-af2c-4780-b568-5d868058632b'
+        Job ID bf633912-af2c-4780-b568-5d868058632b successfully executed
+        QueryJob<project=..., location=..., id='bf633912-af2c-4780-b568-5d868058632b'>
     """
     start_time = time.perf_counter()
     query_job = client.query(query, job_config=job_config)
@@ -481,7 +481,11 @@ def _cell_magic(line, query):
         query (str): SQL query to run
 
     Returns:
-        pandas.DataFrame: the query results.
+        Optional[Union[pandas.DataFrame, google.cloud.bigquery.job.QueryJob]]:
+            The query results as a :class:`~pandas.DataFrame`, a
+            :class:`~google.cloud.bigquery.job.QueryJob` when ``--dry_run`` is
+            set without ``destination_var``, or :data:`None` when
+            ``destination_var`` is provided or an error occurs.
     """
     # The built-in parser does not recognize Python structures such as dicts, thus
     # we extract the "--params" option and inteprpret it separately.

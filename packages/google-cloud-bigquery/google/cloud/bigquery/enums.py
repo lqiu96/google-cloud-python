@@ -49,7 +49,7 @@ class Compression(str, enum.Enum):
 class DecimalTargetType:
     """The data types that could be used as a target type when converting decimal values.
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#DecimalTargetType
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#DecimalTargetType
 
     .. versionadded:: 2.21.0
     """
@@ -99,7 +99,7 @@ class DatasetView(enum.Enum):
 
 
 class DefaultPandasDTypes(enum.Enum):
-    """Default Pandas DataFrem DTypes to convert BigQuery data. These
+    """Default Pandas DataFrame DTypes to convert BigQuery data. These
     Sentinel values are used instead of None to maintain backward compatibility,
     and allow Pandas package is not available. For more information:
     https://stackoverflow.com/a/60605919/101923
@@ -179,21 +179,21 @@ class QueryApiMethod(str, enum.Enum):
 
     INSERT = "INSERT"
     """Submit a query job by using the `jobs.insert REST API method
-    <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert>`_.
+    <https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert>`_.
 
     This supports all job configuration options.
     """
 
     QUERY = "QUERY"
     """Submit a query job by using the `jobs.query REST API method
-    <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query>`_.
+    <https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query>`_.
 
     Differences from ``INSERT``:
 
     * Many parameters and job configuration options, including job ID and
       destination table, cannot be used
       with this API method. See the `jobs.query REST API documentation
-      <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query>`_ for
+      <https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query>`_ for
       the complete list of supported configuration options.
 
     * API blocks up to a specified timeout, waiting for the query to
@@ -255,7 +255,7 @@ class KeyResultStatementKind:
 
     The "key result" is used to populate the schema and query results of the script job.
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#keyresultstatementkind
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#keyresultstatementkind
     """
 
     KEY_RESULT_STATEMENT_KIND_UNSPECIFIED = "KEY_RESULT_STATEMENT_KIND_UNSPECIFIED"
@@ -308,8 +308,8 @@ class EntityTypes(str, enum.Enum):
     ROUTINE = "routine"
 
 
-# See also: https://cloud.google.com/bigquery/data-types#legacy_sql_data_types
-# and https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
+# See also: https://docs.cloud.google.com/bigquery/docs/data-types#legacy_sql_data_types
+# and https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types
 class SqlTypeNames(str, enum.Enum):
     """Enum of allowed SQL type names in schema.SchemaField.
 
@@ -368,7 +368,7 @@ class WriteDisposition(object):
 class DeterminismLevel:
     """Specifies determinism level for JavaScript user-defined functions (UDFs).
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#DeterminismLevel
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines#DeterminismLevel
     """
 
     DETERMINISM_LEVEL_UNSPECIFIED = "DETERMINISM_LEVEL_UNSPECIFIED"

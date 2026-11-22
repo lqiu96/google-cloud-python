@@ -26,8 +26,8 @@ from google.cloud.bigquery.enums import StandardSqlTypeNames
 _STRUCT_TYPES = ("RECORD", "STRUCT")
 
 # SQL types reference:
-# LEGACY SQL: https://cloud.google.com/bigquery/data-types#legacy_sql_data_types
-# GoogleSQL: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
+# LEGACY SQL: https://docs.cloud.google.com/bigquery/docs/data-types#legacy_sql_data_types
+# GoogleSQL: https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types
 LEGACY_TO_STANDARD_TYPES = {
     "STRING": StandardSqlTypeNames.STRING,
     "BYTES": StandardSqlTypeNames.BYTES,
@@ -49,7 +49,7 @@ LEGACY_TO_STANDARD_TYPES = {
     "FOREIGN": StandardSqlTypeNames.FOREIGN,
     # no direct conversion from ARRAY, the latter is represented by mode="REPEATED"
 }
-"""String names of the legacy SQL types to integer codes of Standard SQL standard_sql."""
+"""Mapping from legacy SQL type names to :class:`~google.cloud.bigquery.enums.StandardSqlTypeNames` string values."""
 
 
 class _DefaultSentinel(enum.Enum):
@@ -154,11 +154,11 @@ class SchemaField(object):
 
         field_type:
             The type of the field. See
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableFieldSchema.FIELDS.type
+            https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableFieldSchema.FIELDS.type
 
         mode:
             Defaults to ``'NULLABLE'``. The mode of the field. See
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableFieldSchema.FIELDS.mode
+            https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableFieldSchema.FIELDS.mode
 
         description: Description for the field.
 
@@ -167,7 +167,7 @@ class SchemaField(object):
         policy_tags: The policy tag list for the field.
 
         precision:
-            Precison (number of digits) of fields with NUMERIC or BIGNUMERIC type.
+            Precision (number of digits) of fields with NUMERIC or BIGNUMERIC type.
 
         scale:
             Scale (digits after decimal) of fields with NUMERIC or BIGNUMERIC type.
@@ -196,7 +196,7 @@ class SchemaField(object):
 
             - Struct or array composed with the above allowed functions, for example:
 
-                "[CURRENT_DATE(), DATE '2020-01-01'"]
+                "[CURRENT_DATE(), DATE '2020-01-01']"
 
         range_element_type: FieldElementType, str, Optional
             The subtype of the RANGE, if the type of this field is RANGE. If
@@ -371,7 +371,7 @@ class SchemaField(object):
         """str: The type of the field.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableFieldSchema.FIELDS.type
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableFieldSchema.FIELDS.type
         """
         type_ = self._properties.get("type")
         return cast(str, type_).upper()
@@ -381,7 +381,7 @@ class SchemaField(object):
         """Optional[str]: The mode of the field.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableFieldSchema.FIELDS.mode
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableFieldSchema.FIELDS.mode
         """
         return cast(str, self._properties.get("mode", "NULLABLE")).upper()
 
@@ -469,7 +469,7 @@ class SchemaField(object):
         object preserves all properties from its API representation.
 
         See:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableFieldSchema
+            https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableFieldSchema
         """
         resource = self._properties.get("dataPolicies")
         return (
@@ -575,7 +575,7 @@ class SchemaField(object):
             )
 
             # ARRAY cannot directly contain other arrays, only scalar types and STRUCTs
-            # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#array-type
+            # https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#array_type
             if array_element_type == StandardSqlTypeNames.STRUCT:  # noqa: E721
                 sql_type.array_element_type.struct_type = (
                     standard_sql.StandardSqlStructType(
@@ -628,8 +628,8 @@ def _parse_schema_resource(info):
         info: (Mapping[str, Dict]): should contain a "fields" key to be parsed
 
     Returns:
-        Optional[Sequence[google.cloud.bigquery.schema.SchemaField`]:
-            A list of parsed fields, or ``None`` if no "fields" key found.
+        List[google.cloud.bigquery.schema.SchemaField]:
+            A list of parsed fields (empty if no ``"fields"`` key is found).
     """
     if isinstance(info, list):
         return [SchemaField.from_api_repr(f) for f in info]
@@ -640,7 +640,7 @@ def _build_schema_resource(fields):
     """Generate a resource fragment for a schema.
 
     Args:
-        fields (Sequence[google.cloud.bigquery.schema.SchemaField): schema to be dumped.
+        fields (Sequence[google.cloud.bigquery.schema.SchemaField]): schema to be dumped.
 
     Returns:
         Sequence[Dict]: Mappings describing the schema of the supplied fields.
@@ -697,7 +697,7 @@ class DataPolicy:
             ``projects/{project}/locations/{location}/dataPolicies/{policy}``.
 
     See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#DataPolicyOption
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#DataPolicyOption
     """
 
     def __init__(self, name: str):
@@ -798,20 +798,18 @@ class PolicyTagList(object):
     def from_api_repr(cls, api_repr: dict) -> "PolicyTagList":
         """Return a :class:`PolicyTagList` object deserialized from a dict.
 
-        This method creates a new ``PolicyTagList`` instance that points to
-        the ``api_repr`` parameter as its internal properties dict. This means
-        that when a ``PolicyTagList`` instance is stored as a property of
-        another object, any changes made at the higher level will also appear
-        here.
+        This method copies the ``"names"`` sequence from ``api_repr`` into a
+        new ``PolicyTagList`` instance and does not alias ``api_repr``.
 
         Args:
-            api_repr (Mapping[str, str]):
+            api_repr (Mapping[str, Sequence[str]]):
                 The serialized representation of the PolicyTagList, such as
                 what is output by :meth:`to_api_repr`.
 
         Returns:
             Optional[google.cloud.bigquery.schema.PolicyTagList]:
-                The ``PolicyTagList`` object or None.
+                The ``PolicyTagList`` object, or :data:`None` if ``api_repr``
+                is :data:`None`.
         """
         if api_repr is None:
             return None
@@ -821,10 +819,8 @@ class PolicyTagList(object):
     def to_api_repr(self) -> dict:
         """Return a dictionary representing this object.
 
-        This method returns the properties dict of the ``PolicyTagList``
-        instance rather than making a copy. This means that when a
-        ``PolicyTagList`` instance is stored as a property of another
-        object, any changes made at the higher level will also appear here.
+        This method returns a newly constructed dictionary rather than
+        aliasing the internal properties dict.
 
         Returns:
             dict:

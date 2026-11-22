@@ -99,7 +99,7 @@ PYARROW_VERSIONS = PyarrowVersions()
 
 
 class BQStorageVersions:
-    """Version comparisons for google-cloud-bigqueyr-storage package."""
+    """Version comparisons for google-cloud-bigquery-storage package."""
 
     def __init__(self):
         self._installed_version = None

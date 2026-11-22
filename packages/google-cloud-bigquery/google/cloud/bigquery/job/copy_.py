@@ -29,7 +29,7 @@ from google.cloud.bigquery.job.base import _JobReference
 class OperationType:
     """Different operation types supported in table copy job.
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#operationtype
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#operationtype
     """
 
     OPERATION_TYPE_UNSPECIFIED = "OPERATION_TYPE_UNSPECIFIED"
@@ -65,7 +65,7 @@ class CopyJobConfig(_JobConfig):
         for creating tables.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationTableCopy.FIELDS.create_disposition
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationTableCopy.FIELDS.create_disposition
         """
         return self._get_sub_prop("createDisposition")
 
@@ -79,7 +79,7 @@ class CopyJobConfig(_JobConfig):
         the destination table already exists.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationTableCopy.FIELDS.write_disposition
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationTableCopy.FIELDS.write_disposition
         """
         return self._get_sub_prop("writeDisposition")
 
@@ -96,7 +96,7 @@ class CopyJobConfig(_JobConfig):
         if using default encryption.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationTableCopy.FIELDS.destination_encryption_configuration
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationTableCopy.FIELDS.destination_encryption_configuration
         """
         prop = self._get_sub_prop("destinationEncryptionConfiguration")
         if prop is not None:
@@ -115,7 +115,7 @@ class CopyJobConfig(_JobConfig):
         """The operation to perform with this copy job.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationTableCopy.FIELDS.operation_type
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationTableCopy.FIELDS.operation_type
         """
         return self._get_sub_prop(
             "operationType", OperationType.OPERATION_TYPE_UNSPECIFIED
@@ -129,11 +129,11 @@ class CopyJobConfig(_JobConfig):
 
     @property
     def destination_expiration_time(self) -> str:
-        """google.cloud.bigquery.job.DestinationExpirationTime: The time when the
-        destination table expires. Expired tables will be deleted and their storage reclaimed.
+        """Optional[str]: The time when the destination table expires. Expired
+        tables will be deleted and their storage reclaimed.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationTableCopy.FIELDS.destination_expiration_time
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationTableCopy.FIELDS.destination_expiration_time
         """
         return self._get_sub_prop("destinationExpirationTime")
 
@@ -148,9 +148,9 @@ class CopyJob(_AsyncJob):
     Args:
         job_id (str): the job's ID, within the project belonging to ``client``.
 
-        sources (List[google.cloud.bigquery.table.TableReference]): Table from which data is to be loaded.
+        sources (List[google.cloud.bigquery.table.TableReference]): Table from which data is to be copied.
 
-        destination (google.cloud.bigquery.table.TableReference): Table into which data is to be loaded.
+        destination (google.cloud.bigquery.table.TableReference): Table into which data is to be copied.
 
         client (google.cloud.bigquery.client.Client):
             A client which holds credentials and project configuration
@@ -192,7 +192,7 @@ class CopyJob(_AsyncJob):
     @property
     def destination(self):
         """google.cloud.bigquery.table.TableReference: Table into which data
-        is to be loaded.
+        is to be copied.
         """
         return TableReference.from_api_repr(
             _helpers._get_sub_prop(
@@ -202,8 +202,8 @@ class CopyJob(_AsyncJob):
 
     @property
     def sources(self):
-        """List[google.cloud.bigquery.table.TableReference]): Table(s) from
-        which data is to be loaded.
+        """List[google.cloud.bigquery.table.TableReference]: Table(s) from
+        which data is to be copied.
         """
         source_configs = _helpers._get_sub_prop(
             self._properties, ["configuration", "copy", "sourceTables"]

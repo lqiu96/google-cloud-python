@@ -36,7 +36,7 @@ from google.cloud.bigquery.query import ConnectionProperty
 class ColumnNameCharacterMap:
     """Indicates the character map used for column names.
 
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#columnnamecharactermap
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#columnnamecharactermap
     """
 
     COLUMN_NAME_CHARACTER_MAP_UNSPECIFIED = "COLUMN_NAME_CHARACTER_MAP_UNSPECIFIED"
@@ -60,17 +60,31 @@ class LoadJobConfig(_JobConfig):
     as the name of a keyword argument. Values which are unset or :data:`None`
     use the BigQuery REST API default values. See the `BigQuery REST API
     reference documentation
-    <https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad>`_
+    <https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad>`_
     for a list of default values.
 
     Required options differ based on the
     :attr:`~google.cloud.bigquery.job.LoadJobConfig.source_format` value.
-    For example, the BigQuery API's default value for
-    :attr:`~google.cloud.bigquery.job.LoadJobConfig.source_format` is ``"CSV"``.
-    When loading a CSV file, either
+    For example, the BigQuery API defaults
+    :attr:`~google.cloud.bigquery.job.LoadJobConfig.source_format` to
+    :attr:`~google.cloud.bigquery.enums.SourceFormat.CSV` (``"CSV"``) and
+    :attr:`~google.cloud.bigquery.job.LoadJobConfig.write_disposition` to
+    :attr:`~google.cloud.bigquery.enums.WriteDisposition.WRITE_APPEND`
+    (``"WRITE_APPEND"``). When loading a CSV file, either
     :attr:`~google.cloud.bigquery.job.LoadJobConfig.schema` must be set or
     :attr:`~google.cloud.bigquery.job.LoadJobConfig.autodetect` must be set to
     :data:`True`.
+
+    Note:
+        CSV-only options such as :attr:`field_delimiter`,
+        :attr:`skip_leading_rows`, and :attr:`quote_character` are rejected
+        with ``400 BadRequest`` on non-CSV loads (including Parquet loads
+        from
+        :meth:`~google.cloud.bigquery.client.Client.load_table_from_dataframe`).
+        :attr:`ignore_unknown_values` and :attr:`max_bad_records` are
+        accepted on Parquet loads, though ``load_table_from_dataframe``
+        merges all DataFrame columns into ``job_config.schema`` so extra
+        DataFrame columns still fail schema validation.
     """
 
     def __init__(self, **kwargs) -> None:
@@ -81,7 +95,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[bool]: Allow missing trailing optional columns (CSV only).
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.allow_jagged_rows
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.allow_jagged_rows
         """
         return self._get_sub_prop("allowJaggedRows")
 
@@ -94,7 +108,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[bool]: Allow quoted data containing newline characters (CSV only).
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.allow_quoted_newlines
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.allow_quoted_newlines
         """
         return self._get_sub_prop("allowQuotedNewlines")
 
@@ -107,7 +121,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[bool]: Automatically infer the schema from a sample of the data.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.autodetect
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.autodetect
         """
         return self._get_sub_prop("autodetect")
 
@@ -148,7 +162,7 @@ class LoadJobConfig(_JobConfig):
         """Connection properties.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.connection_properties
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/ConnectionProperty
 
         .. versionadded:: 3.7.0
         """
@@ -168,7 +182,7 @@ class LoadJobConfig(_JobConfig):
         for creating tables.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.create_disposition
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.create_disposition
         """
         return self._get_sub_prop("createDisposition")
 
@@ -187,7 +201,7 @@ class LoadJobConfig(_JobConfig):
         otherwise runs load job in non-session mode.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.create_session
+        https://docs.cloud.google.com/bigquery/docs/sessions
 
         .. versionadded:: 3.7.0
         """
@@ -202,7 +216,7 @@ class LoadJobConfig(_JobConfig):
         """Possible SQL data types to which the source decimal values are converted.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.decimal_target_types
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.decimal_target_types
 
         .. versionadded:: 2.21.0
         """
@@ -227,7 +241,7 @@ class LoadJobConfig(_JobConfig):
         if using default encryption.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.destination_encryption_configuration
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.destination_encryption_configuration
         """
         prop = self._get_sub_prop("destinationEncryptionConfiguration")
         if prop is not None:
@@ -248,7 +262,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[str]: Description of the destination table.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#DestinationTableProperties.FIELDS.description
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#DestinationTableProperties.FIELDS.description
         """
         prop = self._get_sub_prop("destinationTableProperties")
         if prop is not None:
@@ -267,7 +281,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[str]: Name given to destination table.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#DestinationTableProperties.FIELDS.friendly_name
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#DestinationTableProperties.FIELDS.friendly_name
         """
         prop = self._get_sub_prop("destinationTableProperties")
         if prop is not None:
@@ -287,7 +301,7 @@ class LoadJobConfig(_JobConfig):
         data.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.encoding
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.encoding
         """
         return self._get_sub_prop("encoding")
 
@@ -300,7 +314,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[str]: The separator for fields in a CSV file.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.field_delimiter
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.field_delimiter
         """
         return self._get_sub_prop("fieldDelimiter")
 
@@ -318,7 +332,7 @@ class LoadJobConfig(_JobConfig):
             have limited support.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.hive_partitioning_options
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.hive_partitioning_options
         """
         prop = self._get_sub_prop("hivePartitioningOptions")
         if prop is None:
@@ -339,8 +353,14 @@ class LoadJobConfig(_JobConfig):
     def ignore_unknown_values(self):
         """Optional[bool]: Ignore extra values not represented in the table schema.
 
+        Applies to CSV, JSON, and Parquet loads. When
+        :meth:`~google.cloud.bigquery.client.Client.load_table_from_dataframe`
+        loads via intermediate Parquet format, all DataFrame columns are
+        merged into ``job_config.schema`` before upload, so extra DataFrame
+        columns still fail schema validation against an existing table.
+
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.ignore_unknown_values
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.ignore_unknown_values
         """
         return self._get_sub_prop("ignoreUnknownValues")
 
@@ -352,7 +372,7 @@ class LoadJobConfig(_JobConfig):
     def json_extension(self):
         """Optional[str]: The extension to use for writing JSON data to BigQuery. Only supports GeoJSON currently.
 
-        See: https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.json_extension
+        See: https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.json_extension
 
         """
         return self._get_sub_prop("jsonExtension")
@@ -365,8 +385,10 @@ class LoadJobConfig(_JobConfig):
     def max_bad_records(self):
         """Optional[int]: Number of invalid rows to ignore.
 
+        Accepted on CSV, JSON, and Parquet loads.
+
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.max_bad_records
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.max_bad_records
         """
         return _helpers._int_or_none(self._get_sub_prop("maxBadRecords"))
 
@@ -379,7 +401,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[str]: Represents a null value (CSV only).
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.null_marker
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.null_marker
         """
         return self._get_sub_prop("nullMarker")
 
@@ -400,7 +422,7 @@ class LoadJobConfig(_JobConfig):
             This applies to all column types.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.null_markers
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.null_markers
         """
         return self._get_sub_prop("nullMarkers")
 
@@ -413,7 +435,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[bool]: Preserves the embedded ASCII control characters when sourceFormat is set to CSV.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.preserve_ascii_control_characters
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.preserve_ascii_control_characters
         """
         return self._get_sub_prop("preserveAsciiControlCharacters")
 
@@ -434,7 +456,7 @@ class LoadJobConfig(_JobConfig):
         error is returned in the job result.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.projection_fields
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.projection_fields
         """
         return self._get_sub_prop("projectionFields")
 
@@ -447,7 +469,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[str]: Character used to quote data sections (CSV only).
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.quote
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.quote
         """
         return self._get_sub_prop("quote")
 
@@ -492,7 +514,7 @@ class LoadJobConfig(_JobConfig):
     @property
     def reference_file_schema_uri(self):
         """Optional[str]:
-        When creating an external table, the user can provide a reference file with the
+        When loading data, the user can provide a reference file with the
         table schema. This is enabled for the following formats:
 
         AVRO, PARQUET, ORC
@@ -511,7 +533,7 @@ class LoadJobConfig(_JobConfig):
         ]]]: Schema of the destination table.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.schema
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.schema
         """
         schema = _helpers._get_sub_prop(self._properties, ["load", "schema", "fields"])
         if schema is None:
@@ -549,7 +571,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[int]: Number of rows to skip when reading data (CSV only).
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.skip_leading_rows
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.skip_leading_rows
         """
         return _helpers._int_or_none(self._get_sub_prop("skipLeadingRows"))
 
@@ -561,8 +583,12 @@ class LoadJobConfig(_JobConfig):
     def source_format(self):
         """Optional[google.cloud.bigquery.job.SourceFormat]: File format of the data.
 
+        Defaults on the server to
+        :attr:`~google.cloud.bigquery.enums.SourceFormat.CSV` (``"CSV"``) when
+        unset.
+
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.source_format
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.source_format
         """
         return self._get_sub_prop("sourceFormat")
 
@@ -588,7 +614,7 @@ class LoadJobConfig(_JobConfig):
 
         See:
 
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.source_column_match
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.source_column_match
         """
         value = self._get_sub_prop("sourceColumnMatch")
         return SourceColumnMatch(value) if value is not None else None
@@ -608,7 +634,7 @@ class LoadJobConfig(_JobConfig):
         """Optional[str]: Date format used for parsing DATE values.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.date_format
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.date_format
         """
         return self._get_sub_prop("dateFormat")
 
@@ -618,10 +644,10 @@ class LoadJobConfig(_JobConfig):
 
     @property
     def datetime_format(self) -> Optional[str]:
-        """Optional[str]: Date format used for parsing DATETIME values.
+        """Optional[str]: Datetime format used for parsing DATETIME values.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.datetime_format
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.datetime_format
         """
         return self._get_sub_prop("datetimeFormat")
 
@@ -635,7 +661,7 @@ class LoadJobConfig(_JobConfig):
         values that have no specific time zone.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.time_zone
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.time_zone
         """
         return self._get_sub_prop("timeZone")
 
@@ -645,10 +671,10 @@ class LoadJobConfig(_JobConfig):
 
     @property
     def time_format(self) -> Optional[str]:
-        """Optional[str]: Date format used for parsing TIME values.
+        """Optional[str]: Time format used for parsing TIME values.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.time_format
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.time_format
         """
         return self._get_sub_prop("timeFormat")
 
@@ -658,10 +684,10 @@ class LoadJobConfig(_JobConfig):
 
     @property
     def timestamp_format(self) -> Optional[str]:
-        """Optional[str]: Date format used for parsing TIMESTAMP values.
+        """Optional[str]: Timestamp format used for parsing TIMESTAMP values.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.timestamp_format
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.timestamp_format
         """
         return self._get_sub_prop("timestampFormat")
 
@@ -709,8 +735,12 @@ class LoadJobConfig(_JobConfig):
         """Optional[google.cloud.bigquery.job.WriteDisposition]: Action that occurs if
         the destination table already exists.
 
+        Defaults on the server to
+        :attr:`~google.cloud.bigquery.enums.WriteDisposition.WRITE_APPEND`
+        (``"WRITE_APPEND"``) when unset.
+
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.write_disposition
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.write_disposition
         """
         return self._get_sub_prop("writeDisposition")
 
@@ -724,7 +754,7 @@ class LoadJobConfig(_JobConfig):
             properties to set if ``sourceFormat`` is set to PARQUET.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.parquet_options
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.parquet_options
         """
         prop = self._get_sub_prop("parquetOptions")
         if prop is not None:
@@ -740,13 +770,13 @@ class LoadJobConfig(_JobConfig):
 
     @property
     def column_name_character_map(self) -> str:
-        """Optional[google.cloud.bigquery.job.ColumnNameCharacterMap]:
+        """Optional[google.cloud.bigquery.job.load.ColumnNameCharacterMap]:
         Character map supported for column names in CSV/Parquet loads. Defaults
         to STRICT and can be overridden by Project Config Service. Using this
         option with unsupported load formats will result in an error.
 
         See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.column_name_character_map
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.column_name_character_map
         """
         return self._get_sub_prop(
             "columnNameCharacterMap",
@@ -800,7 +830,7 @@ class LoadJob(_AsyncJob):
 
         source_uris (Optional[Sequence[str]]):
             URIs of one or more data files to be loaded.  See
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.source_uris
+            https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.source_uris
             for supported URI formats. Pass None for jobs that load from a file.
 
         destination (google.cloud.bigquery.table.TableReference): reference to table into which data is to be loaded.
@@ -841,7 +871,7 @@ class LoadJob(_AsyncJob):
         """google.cloud.bigquery.table.TableReference: table where loaded rows are written
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.destination_table
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.destination_table
         """
         dest_config = _helpers._get_sub_prop(
             self._properties, ["configuration", "load", "destinationTable"]
@@ -851,7 +881,7 @@ class LoadJob(_AsyncJob):
     @property
     def source_uris(self):
         """Optional[Sequence[str]]: URIs of data files to be loaded. See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.source_uris
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.source_uris
         for supported URI formats. None for jobs that load from a file.
         """
         return _helpers._get_sub_prop(
@@ -956,7 +986,7 @@ class LoadJob(_AsyncJob):
     @property
     def reference_file_schema_uri(self):
         """See:
-        attr:`google.cloud.bigquery.job.LoadJobConfig.reference_file_schema_uri`.
+        :attr:`google.cloud.bigquery.job.LoadJobConfig.reference_file_schema_uri`.
         """
         return self.configuration.reference_file_schema_uri
 
@@ -1003,10 +1033,10 @@ class LoadJob(_AsyncJob):
 
     @property
     def destination_table_description(self):
-        """Optional[str] name given to destination table.
+        """Optional[str]: Description of the destination table.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#DestinationTableProperties.FIELDS.description
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#DestinationTableProperties.FIELDS.description
         """
         return self.configuration.destination_table_description
 
@@ -1015,7 +1045,7 @@ class LoadJob(_AsyncJob):
         """Optional[str] name given to destination table.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#DestinationTableProperties.FIELDS.friendly_name
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job#DestinationTableProperties.FIELDS.friendly_name
         """
         return self.configuration.destination_table_friendly_name
 

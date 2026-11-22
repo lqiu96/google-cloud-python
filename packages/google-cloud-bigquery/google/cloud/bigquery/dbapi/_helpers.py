@@ -352,7 +352,7 @@ def to_query_parameters_dict(parameters, query_parameter_types):
 
     Args:
         parameters (Mapping[str, Any]): Dictionary of query parameter values.
-        parameter_types:
+        query_parameter_types:
             A dictionary of parameter types. It needn't have a key for each
             parameter.
 
@@ -380,7 +380,7 @@ def to_query_parameters(parameters, parameter_types):
             parameter.
 
             If parameters is a sequence, then this must be a list of
-            parameter types, one for each paramater.  Unknown types
+            parameter types, one for each parameter. Unknown types
             are provided as None.
 
     Returns:
@@ -419,7 +419,7 @@ def bigquery_scalar_type(value):
         # NUMERIC values have precision of 38 (number of digits) and scale of 9 (number
         # of fractional digits), and their max absolute value must be strictly smaller
         # than 1.0E+29.
-        # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
+        # https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
         if (
             len(vtuple.digits) <= 38  # max precision: 38
             and vtuple.exponent >= -9  # max scale: 9

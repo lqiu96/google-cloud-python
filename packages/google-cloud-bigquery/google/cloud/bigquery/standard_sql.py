@@ -23,7 +23,7 @@ class StandardSqlDataType:
     """The type of a variable, e.g., a function argument.
 
     See:
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/StandardSqlDataType
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/StandardSqlDataType
 
     Examples:
 
@@ -210,7 +210,7 @@ class StandardSqlField:
     """A field or a column.
 
     See:
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/StandardSqlField
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/StandardSqlField
 
     Args:
         name:
@@ -284,7 +284,7 @@ class StandardSqlStructType:
     """Type of a struct field.
 
     See:
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/StandardSqlDataType#StandardSqlStructType
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/StandardSqlDataType#StandardSqlStructType
 
     Args:
         fields: The fields in this struct.
@@ -335,7 +335,7 @@ class StandardSqlTableType:
     """A table type.
 
     See:
-    https://cloud.google.com/workflows/docs/reference/googleapis/bigquery/v2/Overview#StandardSqlTableType
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/routines#StandardSqlTableType
 
     Args:
         columns: The columns in this table type.

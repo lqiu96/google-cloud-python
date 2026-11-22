@@ -12,19 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Google BigQuery API wrapper.
+"""Google BigQuery API client library.
 
-The main concepts with this API are:
+This package provides the hand-written REST client for BigQuery datasets,
+tables, routines, models, SQL queries, bulk load/extract/copy jobs, legacy
+streaming inserts, and DB-API 2.0 access.
 
-- :class:`~google.cloud.bigquery.client.Client` manages connections to the
-  BigQuery API. Use the client methods to run jobs (such as a
-  :class:`~google.cloud.bigquery.job.QueryJob` via
-  :meth:`~google.cloud.bigquery.client.Client.query`) and manage resources.
+Choosing a sibling package:
 
-- :class:`~google.cloud.bigquery.dataset.Dataset` represents a
-  collection of tables.
+- Use ``google-cloud-bigquery-storage`` for high-throughput parallel table
+  reads (Storage Read API) and new streaming ingestion workloads requiring
+  higher throughput or exactly-once semantics (Storage Write API).
+- Use ``bigframes`` for scalable DataFrame workloads backed by BigQuery,
+  ``pandas-gbq`` for standalone pandas helpers, and ``bigquery-magics`` for
+  the ``%%bigquery`` IPython cell magic.
 
-- :class:`~google.cloud.bigquery.table.Table` represents a single "relation".
+Example:
+
+.. code-block:: python
+
+    from google.cloud import bigquery
+
+    # Reuse a single Client instance across requests.
+    client = bigquery.Client()
+    for row in client.query_and_wait("SELECT 1 AS value"):
+        print(row["value"])
+
+See :class:`~google.cloud.bigquery.client.Client` for lifecycle, thread
+safety, and configuration details, and the canonical product documentation at
+https://docs.cloud.google.com/bigquery/docs.
 """
 
 import sys
@@ -243,7 +259,13 @@ __all__ = [
 
 
 def load_ipython_extension(ipython):
-    """Called by IPython when this module is loaded as an IPython extension."""
+    """Called by IPython when this module is loaded as an IPython extension.
+
+    .. deprecated:: 3.26.0
+        ``%load_ext google.cloud.bigquery`` is deprecated and emits a
+        :class:`FutureWarning`. Install the ``bigquery-magics`` package and run
+        ``%load_ext bigquery_magics`` instead.
+    """
     warnings.warn(
         "%load_ext google.cloud.bigquery is deprecated. Install bigquery-magics package and use `%load_ext bigquery_magics`, instead.",
         category=FutureWarning,

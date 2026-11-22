@@ -248,7 +248,7 @@ class TableReference(_TableBase):
     """TableReferences are pointers to tables.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#tablereference
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/TableReference
 
     Args:
         dataset_ref: A pointer to the dataset
@@ -289,7 +289,7 @@ class TableReference(_TableBase):
         Args:
             table_id (str):
                 A table ID in standard SQL format. If ``default_project``
-                is not specified, this must included a project ID, dataset
+                is not specified, this must include a project ID, dataset
                 ID, and table ID, each separated by ``.``.
             default_project (Optional[str]):
                 The project ID to use when ``table_id`` does not
@@ -476,12 +476,12 @@ class Table(_TableBase):
     """Tables represent a set of rows whose values correspond to a schema.
 
     See
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource-table
+    https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
 
     Args:
         table_ref (Union[google.cloud.bigquery.table.TableReference, str]):
             A pointer to a table. If ``table_ref`` is a string, it must
-            included a project ID, dataset ID, and table ID, each separated
+            include a project ID, dataset ID, and table ID, each separated
             by ``.``.
         schema (Optional[Sequence[Union[ \
                 :class:`~google.cloud.bigquery.schema.SchemaField`, \
@@ -490,6 +490,16 @@ class Table(_TableBase):
             The table's schema. If any item is a mapping, its content must be
             compatible with
             :meth:`~google.cloud.bigquery.schema.SchemaField.from_api_repr`.
+
+    Note:
+        - Modifying properties on a ``Table`` mutates the object locally in
+          memory only. To persist changes, call
+          :meth:`~google.cloud.bigquery.client.Client.update_table` and list
+          the modified attribute names in ``fields``.
+        - To remove an existing label over HTTP PATCH, assign :data:`None` to
+          that key in :attr:`labels` (for example,
+          ``table.labels = {"old_key": None}``) and include ``"labels"`` in
+          ``fields``.
     """
 
     _PROPERTY_TO_API_FIELD: Dict[str, Any] = {
@@ -551,7 +561,7 @@ class Table(_TableBase):
         """google.cloud.bigquery.table.BigLakeConfiguration: Configuration
         for managed tables for Apache Iceberg.
 
-        See https://cloud.google.com/bigquery/docs/iceberg-tables for more information.
+        See https://docs.cloud.google.com/bigquery/docs/biglake-iceberg-tables-in-bigquery for more information.
         """
         prop = self._properties.get(
             self._PROPERTY_TO_API_FIELD["biglake_configuration"]
@@ -605,8 +615,8 @@ class Table(_TableBase):
             attribute. This is not necessary if defining the schema for a BigQuery table.
 
             For details, see:
-            https://cloud.google.com/bigquery/docs/external-tables
-            https://cloud.google.com/bigquery/docs/datasets-intro#external_datasets
+            https://docs.cloud.google.com/bigquery/docs/external-tables
+            https://docs.cloud.google.com/bigquery/docs/datasets-intro#external_datasets
 
         """
         prop = _helpers._get_sub_prop(
@@ -643,8 +653,12 @@ class Table(_TableBase):
         """Dict[str, str]: Labels for the table.
 
         This method always returns a dict. To change a table's labels,
-        modify the dict, then call ``Client.update_table``. To delete a
-        label, set its value to :data:`None` before updating.
+        modify the dict, then call
+        :meth:`~google.cloud.bigquery.client.Client.update_table` with
+        ``"labels"`` in ``fields``. Deleting a key locally or assigning an
+        empty dict does not remove existing server-side labels over HTTP PATCH.
+        To delete a label, set its value to :data:`None` (for example,
+        ``table.labels = {"old_key": None}``) before updating.
 
         Raises:
             ValueError: If ``value`` type is invalid.
@@ -666,7 +680,7 @@ class Table(_TableBase):
         if using default encryption.
 
         See `protecting data with Cloud KMS keys
-        <https://cloud.google.com/bigquery/docs/customer-managed-encryption>`_
+        <https://docs.cloud.google.com/bigquery/docs/customer-managed-encryption>`_
         in the BigQuery documentation.
         """
         prop = self._properties.get(
@@ -1127,7 +1141,7 @@ class Table(_TableBase):
 
     @property
     def streaming_buffer(self):
-        """google.cloud.bigquery.StreamingBuffer: Information about a table's
+        """google.cloud.bigquery.table.StreamingBuffer: Information about a table's
         streaming buffer.
         """
         sb = self._properties.get(self._PROPERTY_TO_API_FIELD["streaming_buffer"])
@@ -1164,7 +1178,7 @@ class Table(_TableBase):
     def snapshot_definition(self) -> Optional["SnapshotDefinition"]:
         """Information about the snapshot. This value is set via snapshot creation.
 
-        See: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table.FIELDS.snapshot_definition
+        See: https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table.FIELDS.snapshot_definition
         """
         snapshot_info = self._properties.get(
             self._PROPERTY_TO_API_FIELD["snapshot_definition"]
@@ -1177,7 +1191,7 @@ class Table(_TableBase):
     def clone_definition(self) -> Optional["CloneDefinition"]:
         """Information about the clone. This value is set via clone creation.
 
-        See: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table.FIELDS.clone_definition
+        See: https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table.FIELDS.clone_definition
         """
         clone_info = self._properties.get(
             self._PROPERTY_TO_API_FIELD["clone_definition"]
@@ -1211,7 +1225,7 @@ class Table(_TableBase):
     def resource_tags(self):
         """Dict[str, str]: Resource tags for the table.
 
-        See: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table.FIELDS.resource_tags
+        See: https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table.FIELDS.resource_tags
         """
         return self._properties.setdefault(
             self._PROPERTY_TO_API_FIELD["resource_tags"], {}
@@ -1227,9 +1241,9 @@ class Table(_TableBase):
     def external_catalog_table_options(
         self,
     ) -> Optional[external_config.ExternalCatalogTableOptions]:
-        """Options defining open source compatible datasets living in the
-        BigQuery catalog. Contains metadata of open source database, schema
-        or namespace represented by the current dataset."""
+        """Options defining open source compatible tables living in the
+        BigQuery catalog. Contains metadata for an external catalog table,
+        such as its connection ID, parameters, and storage descriptor."""
 
         prop = self._properties.get(
             self._PROPERTY_TO_API_FIELD["external_catalog_table_options"]
@@ -1267,8 +1281,8 @@ class Table(_TableBase):
             foreign_type_info is only required if you are referencing an
             external catalog such as a Hive table.
             For details, see:
-            https://cloud.google.com/bigquery/docs/external-tables
-            https://cloud.google.com/bigquery/docs/datasets-intro#external_datasets
+            https://docs.cloud.google.com/bigquery/docs/external-tables
+            https://docs.cloud.google.com/bigquery/docs/datasets-intro#external_datasets
         """
 
         prop = _helpers._get_sub_prop(
@@ -1298,7 +1312,7 @@ class Table(_TableBase):
         Args:
             full_table_id (str):
                 A fully-qualified table ID in standard SQL format. Must
-                included a project ID, dataset ID, and table ID, each
+                include a project ID, dataset ID, and table ID, each
                 separated by ``.``.
 
         Returns:
@@ -1388,16 +1402,22 @@ class Table(_TableBase):
     def max_staleness(self):
         """Union[str, None]: The maximum staleness of data that could be returned when the table is queried.
 
-        Staleness encoded as a string encoding of sql IntervalValue type.
-        This property is optional and defaults to None.
+        Staleness encoded as a string in canonical SQL INTERVAL literal syntax
+        (``[sign]Y-M D H:M:S[.F]``, for example ``'0-0 0 1:0:0'`` for 1 hour or
+        ``'0-0 0 0:30:0'`` for 30 minutes). This property is optional and
+        defaults to :data:`None`.
 
-        According to the BigQuery API documentation, maxStaleness specifies the maximum time
-        interval for which stale data can be returned when querying the table.
-        It helps control data freshness in scenarios like metadata-cached external tables.
+        According to the BigQuery API documentation, ``maxStaleness`` specifies
+        the maximum time interval for which stale data can be returned when
+        querying the table. It helps control data freshness in scenarios like
+        metadata-cached external tables and materialized views.
+
+        See
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table.FIELDS.max_staleness.
 
         Returns:
             Optional[str]: A string representing the maximum staleness interval
-            (e.g., '1h', '30m', '15s' for hours, minutes, seconds respectively).
+            in canonical SQL INTERVAL syntax (for example ``'0-0 0 1:0:0'``).
         """
         return self._properties.get(self._PROPERTY_TO_API_FIELD["max_staleness"])
 
@@ -1406,9 +1426,10 @@ class Table(_TableBase):
         """Set the maximum staleness for the table.
 
         Args:
-            value (Optional[str]): A string representing the maximum staleness interval.
-                Must be a valid time interval string.
-                Examples include '1h' (1 hour), '30m' (30 minutes), '15s' (15 seconds).
+            value (Optional[str]): A string representing the maximum staleness
+                interval in canonical SQL INTERVAL syntax. Examples include
+                ``'0-0 0 1:0:0'`` (1 hour), ``'0-0 0 0:30:0'`` (30 minutes),
+                and ``'0-0 0 0:0:15'`` (15 seconds).
 
         Raises:
             ValueError: If the value is not None and not a string.
@@ -1422,14 +1443,20 @@ class Table(_TableBase):
 class TableListItem(_TableBase):
     """A read-only table resource from a list operation.
 
-    For performance reasons, the BigQuery API only includes some of the table
+    For performance reasons, the BigQuery API only includes a subset of table
     properties when listing tables. Notably,
-    :attr:`~google.cloud.bigquery.table.Table.schema` and
-    :attr:`~google.cloud.bigquery.table.Table.num_rows` are missing.
+    :attr:`~google.cloud.bigquery.table.Table.schema`,
+    :attr:`~google.cloud.bigquery.table.Table.num_rows`, and
+    :attr:`~google.cloud.bigquery.table.Table.description` are omitted.
+
+    ``TableListItem`` is lightweight and read-only. It cannot be passed to
+    :meth:`~google.cloud.bigquery.client.Client.update_table`. Call
+    :meth:`~google.cloud.bigquery.client.Client.get_table` to retrieve the full
+    :class:`~google.cloud.bigquery.table.Table` metadata or to make updates.
 
     For a full list of the properties that the BigQuery API returns, see the
     `REST documentation for tables.list
-    <https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list>`_.
+    <https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables/list>`_.
 
 
     Args:
@@ -1487,11 +1514,15 @@ class TableListItem(_TableBase):
 
     @property
     def labels(self):
-        """Dict[str, str]: Labels for the table.
+        """Dict[str, str]: Read-only labels for the table.
 
-        This method always returns a dict. To change a table's labels,
-        modify the dict, then call ``Client.update_table``. To delete a
-        label, set its value to :data:`None` before updating.
+        ``TableListItem`` is read-only and cannot be passed to
+        :meth:`~google.cloud.bigquery.client.Client.update_table`. To update or
+        delete labels, first fetch the full
+        :class:`~google.cloud.bigquery.table.Table` with
+        :meth:`~google.cloud.bigquery.client.Client.get_table`, modify
+        :attr:`~google.cloud.bigquery.table.Table.labels`, and pass it to
+        :meth:`~google.cloud.bigquery.client.Client.update_table`.
         """
         return self._properties.setdefault("labels", {})
 
@@ -1578,20 +1609,20 @@ class TableListItem(_TableBase):
 
     @classmethod
     def from_string(cls, full_table_id: str) -> "TableListItem":
-        """Construct a table from fully-qualified table ID.
+        """Construct a table list item from a fully-qualified table ID.
 
         Args:
             full_table_id (str):
                 A fully-qualified table ID in standard SQL format. Must
-                included a project ID, dataset ID, and table ID, each
+                include a project ID, dataset ID, and table ID, each
                 separated by ``.``.
 
         Returns:
-            Table: Table parsed from ``full_table_id``.
+            TableListItem: Table list item parsed from ``full_table_id``.
 
         Examples:
-            >>> Table.from_string('my-project.mydataset.mytable')
-            Table(TableRef...(D...('my-project', 'mydataset'), 'mytable'))
+            >>> TableListItem.from_string('my-project.mydataset.mytable')
+            <google.cloud.bigquery.table.TableListItem object at ...>
 
         Raises:
             ValueError:
@@ -1656,7 +1687,7 @@ def _row_from_mapping(mapping, schema):
 class StreamingBuffer(object):
     """Information about a table's streaming buffer.
 
-    See https://cloud.google.com/bigquery/streaming-data-into-bigquery.
+    See https://docs.cloud.google.com/bigquery/docs/write-api-rest.
 
     Args:
         resource (Dict[str, object]):
@@ -1680,7 +1711,7 @@ class StreamingBuffer(object):
 class SnapshotDefinition:
     """Information about base table and snapshot time of the snapshot.
 
-    See https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#snapshotdefinition
+    See https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#snapshotdefinition
 
     Args:
         resource: Snapshot definition representation returned from the API.
@@ -1703,7 +1734,7 @@ class SnapshotDefinition:
 class CloneDefinition:
     """Information about base table and clone time of the clone.
 
-    See https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clonedefinition
+    See https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/tables#clonedefinition
 
     Args:
         resource: Clone definition representation returned from the API.
@@ -1733,6 +1764,13 @@ class Row(object):
         values (Sequence[object]): The row values
         field_to_index (Dict[str, int]):
             A mapping from schema field names to indexes
+
+    Note:
+        Attribute access (``row.col``) resolves after ``Row`` methods, so
+        columns named ``keys``, ``values``, ``items``, or ``get`` must be
+        accessed by key (``row["values"]``) or positional index. Membership
+        checks (``x in row``) test row values rather than column names. Use
+        ``"col" in row.keys()`` to check whether a column exists.
     """
 
     # Choose unusual field names to try to avoid conflict with schema fields.
@@ -1913,6 +1951,25 @@ class RowIterator(HTTPIterator):
         arrow_serialization_options (Optional[Dict[str, str]]):
             The ``arrowSerializationOptions`` sent on ``jobs.query`` for
             ``ARROW`` results. ``ReadRows`` requests the same options.
+
+    Note:
+        - ``RowIterator`` is a single-pass iterator, not a reusable sequence.
+          ``next(rows)`` yields rows directly, and calling ``iter(rows)`` after
+          ``next(rows)`` or iterating the same instance more than once raises
+          :class:`ValueError`.
+        - Calling :meth:`to_dataframe`, :meth:`to_dataframe_iterable`,
+          :meth:`to_arrow`, or :meth:`to_arrow_iterable` after starting row or
+          :attr:`pages` iteration raises :class:`ValueError`.
+        - When ``query_results_format`` is ``"ARROW"``, row iteration
+          (``__iter__``, ``__next__``, and :attr:`pages`) raises
+          :class:`ValueError`. Use :meth:`to_arrow`, :meth:`to_arrow_iterable`,
+          :meth:`to_dataframe`, or :meth:`to_dataframe_iterable` instead.
+        - ``page_size`` limits rows per REST API page (ignored by Storage Read
+          API streams), while ``max_results`` caps total rows returned across
+          all pages. :attr:`total_rows` reports the server total row count
+          (which may be :data:`None` for some iterators), whereas
+          ``num_results`` counts rows yielded so far.
+        - ``RowIterator`` instances are not thread-safe.
     """
 
     def __init__(
@@ -2014,7 +2071,7 @@ class RowIterator(HTTPIterator):
     def location(self) -> Optional[str]:
         """Location where the query executed (if applicable).
 
-        See: https://cloud.google.com/bigquery/docs/locations
+        See: https://docs.cloud.google.com/bigquery/docs/locations
         """
         return self._location
 
@@ -2024,7 +2081,7 @@ class RowIterator(HTTPIterator):
         rows that were affected.
 
         See:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.num_dml_affected_rows
+        https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#body.QueryResponse.FIELDS.num_dml_affected_rows
         """
         return self._num_dml_affected_rows
 
@@ -2184,7 +2241,12 @@ class RowIterator(HTTPIterator):
 
     @property
     def total_rows(self):
-        """int: The total number of rows in the table or query results."""
+        """Optional[int]: The server-reported total number of rows in the table
+        or query results, or :data:`None` if unavailable.
+
+        Unlike ``num_results`` (which tracks rows yielded so far), this
+        property reflects the full result size reported by BigQuery.
+        """
         return self._total_rows
 
     def _maybe_warn_max_results(
@@ -2227,15 +2289,20 @@ class RowIterator(HTTPIterator):
         max_stream_count: Optional[int] = None,
         timeout: Optional[float] = None,
     ) -> Iterator["pyarrow.RecordBatch"]:
-        """[Beta] Create an iterable of class:`pyarrow.RecordBatch`, to process the table as a stream.
+        """[Beta] Create an iterable of :class:`pyarrow.RecordBatch`, to process the table as a stream.
 
         Args:
             bqstorage_client (Optional[google.cloud.bigquery_storage_v1.BigQueryReadClient]):
                 A BigQuery Storage API client. If supplied, use the faster
                 BigQuery Storage API to fetch rows from BigQuery.
 
+                Unlike :meth:`to_arrow`, this method does not auto-create a
+                Storage client when ``bqstorage_client`` is :data:`None`, and
+                instead reads over the REST API.
+
                 This method requires the ``pyarrow`` and
-                ``google-cloud-bigquery-storage`` libraries.
+                ``google-cloud-bigquery-storage`` libraries (for example via
+                ``pip install 'google-cloud-bigquery[pandas,bqstorage]'``).
 
                 This method only exposes a subset of the capabilities of the
                 BigQuery Storage API. For full access to all features
@@ -2260,19 +2327,35 @@ class RowIterator(HTTPIterator):
                 in which case, the number of download stream is always 1.
 
                 If set to 0 or None (the default), the number of download
-                streams is determined by BigQuery the server. However, this behaviour
+                streams is determined by the BigQuery server. However, this behaviour
                 can require a lot of memory to store temporary download result,
                 especially with very large queries. In that case,
                 setting this parameter value to a value > 0 can help
                 reduce system resource consumption.
 
             timeout (Optional[float]):
-                The number of seconds to wait for the underlying download to complete.
-                If ``None``, wait indefinitely.
+                The number of seconds to wait for the underlying download phase
+                to complete (not query execution). If ``None``, wait indefinitely.
 
         Returns:
-            pyarrow.RecordBatch:
+            Iterator[pyarrow.RecordBatch]:
                 A generator of :class:`~pyarrow.RecordBatch`.
+
+        Note:
+            - Consuming the returned generator exhausts this ``RowIterator``.
+            - Even when ``bqstorage_client`` is supplied, this method falls back
+              silently to REST when there is no backing table, ``max_results``
+              is set, a ``page_token`` is already set (for example via
+              ``list_rows(..., page_token=...)``), or most rows are already
+              cached in the first page. Missing
+              ``bigquery.readsessions.create`` IAM permission raises
+              :class:`~google.api_core.exceptions.PermissionDenied` rather than
+              falling back to REST.
+            - ``page_size`` applies only to REST pagination, not Storage Read
+              API streams.
+            - Because ``BigQueryReadClient`` uses gRPC, instantiate it after
+              ``os.fork()`` in multiprocessing applications and avoid sharing
+              gRPC channels across forks or incompatible gevent setups.
 
         .. versionadded:: 2.31.0
         """
@@ -2342,7 +2425,7 @@ class RowIterator(HTTPIterator):
         create_bqstorage_client: bool = True,
         timeout: Optional[float] = None,
     ) -> "pyarrow.Table":
-        """[Beta] Create a class:`pyarrow.Table` by loading all pages of a
+        """[Beta] Create a :class:`pyarrow.Table` by loading all pages of a
         table or query.
 
         Args:
@@ -2370,8 +2453,8 @@ class RowIterator(HTTPIterator):
 
                 This method requires ``google-cloud-bigquery-storage`` library.
 
-                This method only  exposes a subset of the capabilities of the
-                BigQuery Storage API.  For full access to all features
+                This method only exposes a subset of the capabilities of the
+                BigQuery Storage API. For full access to all features
                 (projections, filters, snapshots) use the Storage API directly.
             create_bqstorage_client (Optional[bool]):
                 If ``True`` (default), create a BigQuery Storage API client using
@@ -2383,18 +2466,44 @@ class RowIterator(HTTPIterator):
 
                 .. versionadded:: 1.24.0
             timeout (Optional[float]):
-                The number of seconds to wait for the underlying download to complete.
-                If ``None``, wait indefinitely.
+                The number of seconds to wait for the underlying download phase
+                to complete (not query execution). If ``None``, wait indefinitely.
 
         Returns:
-            pyarrow.Table
+            pyarrow.Table:
                 A :class:`pyarrow.Table` populated with row data and column
                 headers from the query results. The column headers are derived
                 from the destination table's schema.
 
         Raises:
             ValueError: If the :mod:`pyarrow` library cannot be imported.
+            google.api_core.exceptions.PermissionDenied:
+                If the BigQuery Storage Read API is selected and the caller
+                lacks ``bigquery.readsessions.create`` IAM permission.
 
+        Note:
+            - Consumes all remaining pages and exhausts the iterator. A
+              ``RowIterator`` is single-pass and cannot be iterated again after
+              conversion.
+            - Install optional dependencies with
+              ``pip install 'google-cloud-bigquery[pandas,bqstorage]'``.
+            - When ``create_bqstorage_client=True`` (default) and
+              ``google-cloud-bigquery-storage`` is missing or outdated, a
+              ``UserWarning`` is emitted and download falls back to REST.
+              Download also falls back silently to REST when there is no
+              backing table (such as stateless ``JOB_CREATION_OPTIONAL``
+              queries), ``max_results`` is set, a ``page_token`` is already set
+              (for example via ``list_rows(..., page_token=...)``), or most
+              rows are already cached in the first page. Missing
+              ``bigquery.readsessions.create`` IAM permission raises
+              :class:`~google.api_core.exceptions.PermissionDenied` rather than
+              falling back to REST. Pass ``create_bqstorage_client=False`` to
+              force REST.
+            - ``page_size`` applies only to REST pagination, not Storage Read
+              API streams.
+            - Storage Read API clients use gRPC, which is not fork-safe across
+              ``os.fork()`` and has caveats with greenlet/gevent concurrency.
+              Instantiate clients after forking.
 
         .. versionadded:: 1.17.0
         """
@@ -2474,7 +2583,13 @@ class RowIterator(HTTPIterator):
                 A BigQuery Storage API client. If supplied, use the faster
                 BigQuery Storage API to fetch rows from BigQuery.
 
-                This method requires ``google-cloud-bigquery-storage`` library.
+                Unlike :meth:`to_dataframe`, this method does not auto-create a
+                Storage client when ``bqstorage_client`` is :data:`None`, and
+                instead reads over the REST API.
+
+                This method requires the ``google-cloud-bigquery-storage``
+                library (for example via
+                ``pip install 'google-cloud-bigquery[pandas,bqstorage]'``).
 
                 This method only exposes a subset of the capabilities of the
                 BigQuery Storage API. For full access to all features
@@ -2506,23 +2621,39 @@ class RowIterator(HTTPIterator):
                 in which case, the number of download stream is always 1.
 
                 If set to 0 or None (the default), the number of download
-                streams is determined by BigQuery the server. However, this behaviour
+                streams is determined by the BigQuery server. However, this behaviour
                 can require a lot of memory to store temporary download result,
                 especially with very large queries. In that case,
                 setting this parameter value to a value > 0 can help
                 reduce system resource consumption.
 
             timeout (Optional[float]):
-                The number of seconds to wait for the underlying download to complete.
-                If ``None``, wait indefinitely.
+                The number of seconds to wait for the underlying download phase
+                to complete (not query execution). If ``None``, wait indefinitely.
 
         Returns:
-            pandas.DataFrame:
+            Iterator[pandas.DataFrame]:
                 A generator of :class:`~pandas.DataFrame`.
 
         Raises:
             ValueError:
                 If the :mod:`pandas` library cannot be imported.
+
+        Note:
+            - Consuming the returned generator exhausts this ``RowIterator``.
+            - Even when ``bqstorage_client`` is supplied, this method falls back
+              silently to REST when there is no backing table, ``max_results``
+              is set, a ``page_token`` is already set (for example via
+              ``list_rows(..., page_token=...)``), or most rows are already
+              cached in the first page. Missing
+              ``bigquery.readsessions.create`` IAM permission raises
+              :class:`~google.api_core.exceptions.PermissionDenied` rather than
+              falling back to REST.
+            - ``page_size`` applies only to REST pagination, not Storage Read
+              API streams.
+            - Because ``BigQueryReadClient`` uses gRPC, instantiate it after
+              ``os.fork()`` in multiprocessing applications and avoid sharing
+              gRPC channels across forks or incompatible gevent setups.
         """
         _pandas_helpers.verify_pandas_imports()
 
@@ -2604,6 +2735,11 @@ class RowIterator(HTTPIterator):
     ) -> "pandas.DataFrame":
         """Create a pandas DataFrame by loading all pages of a query.
 
+        .. deprecated:: 3.44.0
+            Calling this method emits a :class:`PendingDeprecationWarning`
+            recommending ``pandas_gbq.read_gbq()`` for direct DataFrame
+            retrieval.
+
         Args:
             bqstorage_client (Optional[google.cloud.bigquery_storage_v1.BigQueryReadClient]):
                 A BigQuery Storage API client. If supplied, use the faster
@@ -2663,7 +2799,7 @@ class RowIterator(HTTPIterator):
                 ``pandas.BooleanDtype()``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("bool")``. BigQuery Boolean
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#boolean_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#boolean_type
 
                 .. versionadded:: 3.8.0
 
@@ -2673,7 +2809,7 @@ class RowIterator(HTTPIterator):
                 ``pandas.Int64Dtype()``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("int64")``. A list of BigQuery
                 Integer types can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#integer_types
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#integer_types
 
                 .. versionadded:: 3.8.0
 
@@ -2683,7 +2819,7 @@ class RowIterator(HTTPIterator):
                 ``numpy.dtype("float64")``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("float64")``. BigQuery Float
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
 
                 .. versionadded:: 3.8.0
 
@@ -2693,7 +2829,7 @@ class RowIterator(HTTPIterator):
                 ``numpy.dtype("object")``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("object")``. BigQuery String
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#string_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#string_type
 
                 .. versionadded:: 3.8.0
 
@@ -2704,18 +2840,18 @@ class RowIterator(HTTPIterator):
                 If you explicitly set the value to ``None``, then the data type will be
                 ``numpy.dtype("datetime64[ns]")`` or ``object`` if out of bound. BigQuery
                 Date type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#date_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#date_type
 
                 .. versionadded:: 3.10.0
 
             datetime_dtype (Optional[pandas.Series.dtype, None]):
                 If set, indicate a pandas ExtensionDtype (e.g.
                 ``pandas.ArrowDtype(pyarrow.timestamp("us"))``) to convert BigQuery Datetime
-                type, instead of relying on the default ``numpy.dtype("datetime64[ns]``.
+                type, instead of relying on the default ``numpy.dtype("datetime64[ns]")``.
                 If you explicitly set the value to ``None``, then the data type will be
                 ``numpy.dtype("datetime64[ns]")`` or ``object`` if out of bound. BigQuery
                 Datetime type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#datetime_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#datetime_type
 
                 .. versionadded:: 3.10.0
 
@@ -2725,7 +2861,7 @@ class RowIterator(HTTPIterator):
                 type, instead of relying on the default ``db_dtypes.TimeDtype()``.
                 If you explicitly set the value to ``None``, then the data type will be
                 ``numpy.dtype("object")``. BigQuery Time type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#time_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#time_type
 
                 .. versionadded:: 3.10.0
 
@@ -2735,13 +2871,14 @@ class RowIterator(HTTPIterator):
                 type, instead of relying on the default ``numpy.dtype("datetime64[ns, UTC]")``.
                 If you explicitly set the value to ``None``, then the data type will be
                 ``numpy.dtype("datetime64[ns, UTC]")`` or ``object`` if out of bound. BigQuery
-                Datetime type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#timestamp_type
+                Timestamp type can be found at:
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#timestamp_type
 
                 .. versionadded:: 3.10.0
 
             range_date_dtype (Optional[pandas.Series.dtype, None]):
-                If set, indicate a pandas ExtensionDtype, such as:
+                If set, indicate a pandas ExtensionDtype to convert BigQuery
+                ``RANGE<DATE>`` values instead of relying on the default:
 
                 .. code-block:: python
 
@@ -2749,16 +2886,15 @@ class RowIterator(HTTPIterator):
                         [("start", pyarrow.date32()), ("end", pyarrow.date32())]
                     ))
 
-                to convert BigQuery RANGE<DATE> type, instead of relying on
-                the default ``object``. If you explicitly set the value to
-                ``None``, the data type will be ``object``. BigQuery Range type
-                can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
+                If you explicitly set the value to ``None``, the data type will
+                be ``object``. BigQuery Range type can be found at:
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
 
                 .. versionadded:: 3.21.0
 
             range_datetime_dtype (Optional[pandas.Series.dtype, None]):
-                If set, indicate a pandas ExtensionDtype, such as:
+                If set, indicate a pandas ExtensionDtype to convert BigQuery
+                ``RANGE<DATETIME>`` values instead of relying on the default:
 
                 .. code-block:: python
 
@@ -2769,16 +2905,15 @@ class RowIterator(HTTPIterator):
                         ]
                     ))
 
-                to convert BigQuery RANGE<DATETIME> type, instead of relying on
-                the default ``object``. If you explicitly set the value to
-                ``None``, the data type will be ``object``. BigQuery Range type
-                can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
+                If you explicitly set the value to ``None``, the data type will
+                be ``object``. BigQuery Range type can be found at:
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
 
                 .. versionadded:: 3.21.0
 
             range_timestamp_dtype (Optional[pandas.Series.dtype, None]):
-                If set, indicate a pandas ExtensionDtype, such as:
+                If set, indicate a pandas ExtensionDtype to convert BigQuery
+                ``RANGE<TIMESTAMP>`` values instead of relying on the default:
 
                 .. code-block:: python
 
@@ -2789,17 +2924,15 @@ class RowIterator(HTTPIterator):
                         ]
                     ))
 
-                to convert BigQuery RANGE<TIMESTAMP> type, instead of relying
-                on the default ``object``. If you explicitly set the value to
-                ``None``, the data type will be ``object``. BigQuery Range type
-                can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
+                If you explicitly set the value to ``None``, the data type will
+                be ``object``. BigQuery Range type can be found at:
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#range_type
 
                 .. versionadded:: 3.21.0
 
             timeout (Optional[float]):
-                The number of seconds to wait for the underlying download to complete.
-                If ``None``, wait indefinitely.
+                The number of seconds to wait for the underlying download phase
+                to complete (not query execution). If ``None``, wait indefinitely.
 
         Returns:
             pandas.DataFrame:
@@ -2811,11 +2944,38 @@ class RowIterator(HTTPIterator):
             ValueError:
                 If the :mod:`pandas` library cannot be imported, or
                 the :mod:`google.cloud.bigquery_storage_v1` module is
-                required but cannot be imported.  Also if
-                `geography_as_object` is `True`, but the
+                required but cannot be imported. Also if
+                ``geography_as_object`` is ``True``, but the
                 :mod:`shapely` library cannot be imported. Also if
-                `bool_dtype`, `int_dtype` or other dtype parameters
-                is not supported dtype.
+                ``bool_dtype``, ``int_dtype`` or other dtype parameters
+                is not a supported dtype.
+            google.api_core.exceptions.PermissionDenied:
+                If the BigQuery Storage Read API is selected and the caller
+                lacks ``bigquery.readsessions.create`` IAM permission.
+
+        Note:
+            - Consumes all remaining pages and exhausts the iterator. A
+              ``RowIterator`` is single-pass and cannot be iterated again after
+              conversion.
+            - Install optional dependencies with
+              ``pip install 'google-cloud-bigquery[pandas,bqstorage]'``.
+            - When ``create_bqstorage_client=True`` (default) and
+              ``google-cloud-bigquery-storage`` is missing or outdated, a
+              ``UserWarning`` is emitted and download falls back to REST.
+              Download also falls back silently to REST when there is no
+              backing table (such as stateless ``JOB_CREATION_OPTIONAL``
+              queries), ``max_results`` is set, a ``page_token`` is already set
+              (for example via ``list_rows(..., page_token=...)``), or most
+              rows are already cached in the first page. Missing
+              ``bigquery.readsessions.create`` IAM permission raises
+              :class:`~google.api_core.exceptions.PermissionDenied` rather than
+              falling back to REST. Pass ``create_bqstorage_client=False`` to
+              force REST.
+            - ``page_size`` applies only to REST pagination, not Storage Read
+              API streams.
+            - Storage Read API clients use gRPC, which is not fork-safe across
+              ``os.fork()`` and has caveats with greenlet/gevent concurrency.
+              Instantiate clients after forking.
 
         """
         warnings.warn(
@@ -3056,7 +3216,7 @@ class RowIterator(HTTPIterator):
             geography_column (Optional[str]):
                 If there are more than one GEOGRAPHY column,
                 identifies which one to use to construct a geopandas
-                GeoDataFrame.  This option can be ommitted if there's
+                GeoDataFrame. This option can be omitted if there's
                 only one GEOGRAPHY column.
             bool_dtype (Optional[pandas.Series.dtype, None]):
                 If set, indicate a pandas ExtensionDtype (e.g. ``pandas.BooleanDtype()``)
@@ -3064,28 +3224,31 @@ class RowIterator(HTTPIterator):
                 ``pandas.BooleanDtype()``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("bool")``. BigQuery Boolean
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#boolean_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#boolean_type
             int_dtype (Optional[pandas.Series.dtype, None]):
                 If set, indicate a pandas ExtensionDtype (e.g. ``pandas.Int64Dtype()``)
                 to convert BigQuery Integer types, instead of relying on the default
                 ``pandas.Int64Dtype()``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("int64")``. A list of BigQuery
                 Integer types can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#integer_types
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#integer_types
             float_dtype (Optional[pandas.Series.dtype, None]):
                 If set, indicate a pandas ExtensionDtype (e.g. ``pandas.Float32Dtype()``)
                 to convert BigQuery Float type, instead of relying on the default
                 ``numpy.dtype("float64")``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("float64")``. BigQuery Float
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#floating_point_types
             string_dtype (Optional[pandas.Series.dtype, None]):
                 If set, indicate a pandas ExtensionDtype (e.g. ``pandas.StringDtype()``) to
                 convert BigQuery String type, instead of relying on the default
                 ``numpy.dtype("object")``. If you explicitly set the value to ``None``,
                 then the data type will be ``numpy.dtype("object")``. BigQuery String
                 type can be found at:
-                https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#string_type
+                https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#string_type
+            timeout (Optional[float]):
+                The number of seconds to wait for the underlying download phase
+                to complete (not query execution). If ``None``, wait indefinitely.
 
         Returns:
             geopandas.GeoDataFrame:
@@ -3099,6 +3262,14 @@ class RowIterator(HTTPIterator):
                 If the :mod:`geopandas` library cannot be imported, or the
                 :mod:`google.cloud.bigquery_storage_v1` module is
                 required but cannot be imported.
+            google.api_core.exceptions.PermissionDenied:
+                If the BigQuery Storage Read API is selected and the caller
+                lacks ``bigquery.readsessions.create`` IAM permission.
+
+        Note:
+            Consumes all remaining pages and exhausts the iterator. Shares the
+            same Storage Read API selection, REST fallback, ``page_size``, and
+            gRPC fork caveats as :meth:`to_dataframe`.
 
         .. versionadded:: 2.24.0
         """
@@ -3191,7 +3362,7 @@ class _EmptyRowIterator(RowIterator):
         create_bqstorage_client=True,
         timeout: Optional[float] = None,
     ) -> "pyarrow.Table":
-        """[Beta] Create an empty class:`pyarrow.Table`.
+        """[Beta] Create an empty :class:`pyarrow.Table`.
 
         Args:
             progress_bar_type (str): Ignored. Added for compatibility with RowIterator.
@@ -3227,6 +3398,11 @@ class _EmptyRowIterator(RowIterator):
         timeout: Optional[float] = None,
     ) -> "pandas.DataFrame":
         """Create an empty dataframe.
+
+        .. deprecated:: 3.44.0
+            Calling this method emits a :class:`PendingDeprecationWarning`
+            recommending ``pandas_gbq.read_gbq()`` for direct DataFrame
+            retrieval.
 
         Args:
             bqstorage_client (Any): Ignored. Added for compatibility with RowIterator.
@@ -3271,7 +3447,7 @@ class _EmptyRowIterator(RowIterator):
         string_dtype: Union[Any, None] = None,
         timeout: Optional[float] = None,
     ) -> "pandas.DataFrame":
-        """Create an empty dataframe.
+        """Create an empty GeoDataFrame.
 
         Args:
             bqstorage_client (Any): Ignored. Added for compatibility with RowIterator.
@@ -3286,7 +3462,7 @@ class _EmptyRowIterator(RowIterator):
             timeout (Optional[float]): Ignored. Added for compatibility with RowIterator.
 
         Returns:
-            pandas.DataFrame: An empty :class:`~pandas.DataFrame`.
+            geopandas.GeoDataFrame: An empty :class:`~geopandas.GeoDataFrame`.
         """
         if geopandas is None:
             raise ValueError(_NO_GEOPANDAS_ERROR)
@@ -3340,7 +3516,7 @@ class _EmptyRowIterator(RowIterator):
         max_stream_count: Optional[int] = None,
         timeout: Optional[float] = None,
     ) -> Iterator["pyarrow.RecordBatch"]:
-        """Create an iterable of pandas DataFrames, to process the table as a stream.
+        """Create an iterable of PyArrow RecordBatches, to process the table as a stream.
 
         .. versionadded:: 2.31.0
 
@@ -3560,7 +3736,7 @@ class TimePartitioning(object):
             field. Its mode must be ``NULLABLE`` or ``REQUIRED``.
 
             See the `time-unit column-partitioned tables guide
-            <https://cloud.google.com/bigquery/docs/creating-column-partitions>`_
+            <https://docs.cloud.google.com/bigquery/docs/creating-partitioned-tables>`_
             in the BigQuery documentation.
         expiration_ms(Optional[int]):
             Number of milliseconds for which to keep the storage for a

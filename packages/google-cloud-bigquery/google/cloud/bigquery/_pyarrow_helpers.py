@@ -15,7 +15,7 @@
 """Shared helper functions for connecting BigQuery and pyarrow.
 
 NOTE: This module is DEPRECATED. Please make updates in the pandas-gbq package,
-instead. See: go/pandas-gbq-and-bigframes-redundancy,
+instead. See:
 https://github.com/googleapis/python-bigquery-pandas/blob/main/pandas_gbq/schema/bigquery_to_pyarrow.py
 and
 https://github.com/googleapis/python-bigquery-pandas/blob/main/pandas_gbq/schema/pyarrow_to_bigquery.py
@@ -47,7 +47,7 @@ def pyarrow_numeric():
 
 def pyarrow_bignumeric():
     # 77th digit is partial.
-    # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
+    # https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
     return pyarrow.decimal256(76, 38)
 
 
