@@ -178,7 +178,9 @@ class Transaction(Batch):
             ...     client.put(thing1)
 
        ``thing1`` won't have a complete key until the transaction is
-       committed.
+       committed. To create a parent entity and child entities referencing that
+       parent inside one transaction, pre-allocate the parent ID beforehand
+       with :meth:`~google.cloud.datastore.client.Client.allocate_ids`.
 
        Once you exit the transaction (or call :meth:`commit`), the
        automatically generated ID will be assigned to the entity:

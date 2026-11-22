@@ -166,12 +166,17 @@ class Query(object):
     :type namespace: str
     :param namespace:
         (Optional) The namespace to which to restrict results.  If not passed,
-        uses the client's value.
+        uses the client's value (it is NOT inherited from
+        ``ancestor.namespace``).
 
     :type ancestor: :class:`~google.cloud.datastore.key.Key`
     :param ancestor:
         (Optional) key of the ancestor to which this query's results are
-        restricted.
+        restricted. Passing ``ancestor=`` does NOT inherit
+        ``ancestor.namespace``: you must also pass
+        ``namespace=ancestor.namespace`` (or initialize the client with that
+        namespace), otherwise the query runs in the client's namespace and
+        fails or returns empty results.
 
     :type filters: sequence of :class:`BaseFilter` or tuple[str, str, Any]
     :param filters: Property or composite filters applied by this query. Prefer

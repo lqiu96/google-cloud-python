@@ -622,10 +622,14 @@ class Client(ClientWithProject):
               ``entity.key`` when order or presence matters.
             - Out-list parameters ``missing`` and ``deferred`` must be ``None``
               or an empty ``list`` (``[]``), or :class:`ValueError` is raised.
-              ``missing`` is populated with key-only
+              This method returns only the found entities list; when provided,
+              ``missing`` is mutated in place with key-only
               :class:`~google.cloud.datastore.entity.Entity` objects, whereas
-              ``deferred`` is populated with
+              ``deferred`` is mutated in place with
               :class:`~google.cloud.datastore.key.Key` objects.
+            - Duplicate keys in ``keys`` are sent verbatim without client-side
+              deduplication (unlike some other Datastore SDKs); deduplicate
+              ``keys`` beforehand if you want unique results.
             - When ``deferred`` is ``None``, deferred keys are retried
               automatically in a loop up to 128 RPCs. Passing ``deferred=[]``
               stops after a single RPC and leaves any remaining deferred keys
@@ -775,7 +779,9 @@ class Client(ClientWithProject):
             - Outside an active transaction, ``put_multi`` sends all entities
               in a single ``NON_TRANSACTIONAL`` commit RPC without chunking
               (not atomic across entities), subject to the 10 MiB maximum API
-              request size.
+              request size. Duplicate keys in ``entities`` are not deduplicated
+              client-side and fail server-side in ``NON_TRANSACTIONAL`` mode;
+              deduplicate keys before calling ``put_multi``.
             - Inside ``with client.batch():`` or
               ``with client.transaction():``, writes are buffered until commit
               and ``retry`` and ``timeout`` are ignored.
@@ -924,7 +930,9 @@ class Client(ClientWithProject):
         Requests ``num_ids`` server-generated numeric IDs from Datastore
         (unlike :meth:`reserve_ids_multi` and :meth:`reserve_ids_sequential`,
         which reserve caller-chosen numeric IDs so Datastore will not
-        auto-allocate them).
+        auto-allocate them). This is also the recommended way to pre-allocate
+        a parent key before constructing child keys referencing that parent
+        inside a single :meth:`transaction`.
 
         :type incomplete_key: :class:`google.cloud.datastore.key.Key`
         :param incomplete_key: Partial key to use as base for allocated IDs.
@@ -1053,7 +1061,10 @@ class Client(ClientWithProject):
               exiting the ``with`` block.
             - Buffered writes are serialized at ``put()`` time, are not visible
               to reads in the same transaction, and are subject to the 10 MiB
-              maximum transaction and API request size per commit. See
+              maximum transaction and API request size per commit. Partial keys
+              are not completed until commit; call :meth:`allocate_ids`
+              beforehand if you need to create a parent and child entities
+              referencing that parent in one transaction. See
               :class:`~google.cloud.datastore.transaction.Transaction` for a
               retry-loop example and full lifecycle details.
 
@@ -1072,6 +1083,14 @@ class Client(ClientWithProject):
 
         Passes this client's ``project`` and (unless explicitly provided via
         ``namespace=``) ``namespace``.
+
+        .. warning::
+
+            Passing ``ancestor=`` does NOT inherit ``ancestor.namespace``.
+            When querying a namespaced ancestor, also pass
+            ``namespace=ancestor.namespace`` (or initialize the client with
+            that namespace), otherwise the query runs in the client's
+            namespace and fails or returns empty results.
 
         Using query to search a datastore:
 

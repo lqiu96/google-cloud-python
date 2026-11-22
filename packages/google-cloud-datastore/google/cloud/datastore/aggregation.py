@@ -314,6 +314,10 @@ class AggregationQuery(object):
             - ``limit`` applies to the wrapped nested query (capping how many
               entities are aggregated), not to the number of aggregation
               results returned.
+            - When zero entities match, :attr:`AggregationResult.value` for
+              ``avg`` (as well as ``count`` and ``sum``) is returned as ``0.0``
+              rather than ``None``; callers needing nullable empty averages
+              should include ``count`` and check ``count == 0``.
             - When using ``ExplainOptions(analyze=True)``, exhaust the
               returned iterator before reading
               :attr:`AggregationResultIterator.explain_metrics`.
