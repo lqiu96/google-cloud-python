@@ -1691,6 +1691,18 @@ class QueryJob(_AsyncJob):
                 is disabled, and a ``TypeError`` is raised if a non-``None``
                 non-default ``job_retry`` is provided.
 
+                If this job was created via ``Client.query()`` with the default
+                ``api_method=QueryApiMethod.INSERT`` and a non-``None``
+                ``job_retry``, restarting a failed job re-runs ``jobs.insert``
+                under an internal 600-second retry wrapper
+                (``_DEFAULT_QUERY_JOB_INSERT_RETRY``) that unwraps
+                ``RetryError.cause`` and ignores ``job_retry.deadline``. For
+                strict bounded deadlines, use
+                ``api_method=QueryApiMethod.QUERY`` or
+                ``Client.query_and_wait()``, or pass ``job_retry=None`` and
+                retry jobs under a shared outer monotonic deadline while
+                trimming per-RPC ``timeout`` to the remaining budget.
+
         Returns:
             google.cloud.bigquery.table.RowIterator:
                 Iterator of row data

@@ -3948,6 +3948,18 @@ class Client(ClientWithProject):
                 while keeping automatic job retries, or pass
                 ``job_retry=None``.
 
+                Under the default ``api_method=QueryApiMethod.INSERT``, any
+                non-``None`` ``job_retry`` wraps ``jobs.insert`` in an
+                internal 600-second retry loop
+                (``_DEFAULT_QUERY_JOB_INSERT_RETRY``) that unwraps
+                :attr:`~google.api_core.exceptions.RetryError.cause` and
+                ignores ``job_retry.deadline`` (even when ``retry`` has a
+                shorter deadline). For strict bounded deadlines, use
+                ``api_method=QueryApiMethod.QUERY`` or :meth:`query_and_wait`,
+                or pass ``job_retry=None`` and manage job-level retries under
+                a shared outer monotonic deadline while trimming per-RPC
+                ``timeout`` to the remaining budget.
+
                 Note that job execution errors are not raised until
                 :meth:`~google.cloud.bigquery.job.QueryJob.result` is called.
                 The ``job_retry`` specified here becomes the default
